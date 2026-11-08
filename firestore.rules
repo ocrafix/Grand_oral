@@ -46,6 +46,11 @@ service cloud.firestore {
                     && request.resource.data.cardId == resource.data.cardId;
       allow delete: if signedIn() && resource.data.seller == me();
     }
+    // Liste des cartes de chaque joueur, pour choisir une carte à demander en échange.
+    match /collections/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && me() == uid;
+    }
     // Échanges entre amis : une carte contre une carte.
     match /trades/{id} {
       allow read: if signedIn() && (resource.data.from == me() || resource.data.to == me());

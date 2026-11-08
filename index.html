@@ -845,6 +845,17 @@ html,body{overflow-x:hidden}
 .oddsbox[open]>summary::after{content:" ▴"}
 .oddsbox p{margin:8px 0 0}
 .packpanel .pkcount{margin-bottom:2px}
+
+/* Version 6 */
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:12px 0 4px}
+.day{position:relative;border-radius:10px;padding:6px 2px;background:#fff;border:1px solid #DDCBA2;text-align:center}
+.day small{display:block;font-size:9.5px;color:#5F6276}
+.day b{display:block;font-size:11px;color:#14204A;white-space:nowrap}
+.day.got{background:#EAF6EE;border-color:#7FD69E}
+.day.got em{position:absolute;top:-6px;right:-4px;font-style:normal;font-size:11px;background:#1C7A4C;color:#fff;border-radius:99px;padding:0 5px}
+.day.today{background:linear-gradient(135deg,#F6DC8E,#C9A045 55%,#F0CD72);border-color:#A87A1E;transform:scale(1.08);box-shadow:0 6px 14px -6px rgba(168,122,30,.8)}
+.bigquote{font-size:20px;font-weight:800;font-style:italic;color:#14204A;margin:10px 0 4px;line-height:1.3}
+#notice .achpop-in p{color:#14204A}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -1305,7 +1316,7 @@ function celebrate(r,host){
 function tear(el){
   if(!pack||pack.step!=='sealed'||el.classList.contains('tearing')) return;
   const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  el.classList.add('tearing'); if(pack.god) el.classList.add('godtear');
+  el.classList.add('tearing'); if(pack.god) el.classList.add('godtear'); sfx(pack.god?'god':'tear');
   if(!still){const ov=$('ov');ov.classList.add('megashake');setTimeout(()=>ov.classList.remove('megashake'),600);}
   setTimeout(()=>{if(!pack)return;pack.step=pack.god?'god':(pack.qty>1?'multi':'reveal');pack.i=0;pack.flipped=false;renderOv();
     if(pack.god){setTimeout(()=>{celebrate('g',document.querySelector('.ov .godintro'));confetti(90);fireworks(5);},60);}},still?0:(pack.god?1500:1150));
@@ -1313,7 +1324,7 @@ function tear(el){
 function tap(el){
   const c=pack.cards[pack.i];
   if(!pack.flipped){
-    pack.flipped=true; el.classList.add('on');
+    pack.flipped=true; el.classList.add('on'); sfx('flip'); setTimeout(()=>sfx(c.r),330);
     setTimeout(()=>{const fs=$('favslot');if(fs)fs.hidden=false;},450);
     if(c.r==='l'||c.r==='e'||c.r==='r'||c.r==='d') setTimeout(()=>el.classList.add('burst-'+c.r),350);
     if(c.r==='l'||c.r==='e'||c.r==='d') setTimeout(()=>celebrate(c.r),380);
@@ -1350,6 +1361,9 @@ function checkGifts(){
   dipTick();
   if(S.pendingPack&&resumePending()) return;
   if(S.needStarter&&!S.starterPick) return void setTimeout(()=>{if(!pack)startStarter();},500);
+  if(noticeOpen()) return;
+  if(oneTimeNotices()) return;
+  if(showDaily()) return;
   checkAchievements(); showAchPopup();
 }
 function startSurprise(){
@@ -1457,6 +1471,7 @@ async function doSync(){
     await NET.db.doc('data/users/'+NET.uid+'/save').set(JSON.parse(JSON.stringify(S)));
     const a=me(), p={pseudo:a.pseudo,key:pkey(a.pseudo),packs:S.opened||0,cards:owned(),value:collectionValue(),av:a.av||'',vitrine:vitrine(),dups:dupIds(),updated:Date.now()};
     const cur=NET.players[NET.uid];
+    syncCollection();
     if(!cur||cur.packs!==p.packs||cur.cards!==p.cards||cur.pseudo!==p.pseudo||cur.value!==p.value||(cur.av||'')!==p.av||JSON.stringify(cur.vitrine||[])!==JSON.stringify(p.vitrine)||JSON.stringify(cur.dups||[])!==JSON.stringify(p.dups)) await NET.db.doc('players/'+NET.uid).set(p);
   }catch(e){ if(e&&e.code==='quota_exceeded') toast('Sauvegarde en ligne impossible pour le moment : la base est pleine.'); }
   syncing=false; if(syncAgain){syncAgain=false;doSync();}
@@ -1496,10 +1511,11 @@ function subscribeNet(){
   const err=()=>{NET.error=true;netRefresh();};
   setTimeout(()=>{if(!NET.loaded){NET.slow=true;netRefresh();}},10000);
   db.collection('players').limit(1000).onSnapshot(s=>{const o={};s.docs.forEach(d=>{o[d.id]=d.data();});NET.players=o;NET.loaded=true;NET.slow=false;netRefresh();},err);
-  db.collection('requests').where('to','==',uid).onSnapshot(s=>{NET.inReq=s.docs.map(d=>d.data());netRefresh();},err);
+  db.collection('requests').where('to','==',uid).onSnapshot(s=>{NET.inReq=s.docs.map(d=>d.data());watchNew('req',NET.inReq,r=>r.from,r=>['👋 Demande d’ami',pname(r.from)+' veut devenir ton ami']);netRefresh();},err);
   db.collection('requests').where('from','==',uid).onSnapshot(s=>{NET.outReq=s.docs.map(d=>d.data());netRefresh();},err);
-  db.collection('trades').where('to','==',uid).onSnapshot(s=>{NET.tin=s.docs.map(d=>Object.assign({id:d.id},d.data()));netRefresh();},()=>{});
+  db.collection('trades').where('to','==',uid).onSnapshot(s=>{NET.tin=s.docs.map(d=>Object.assign({id:d.id},d.data()));watchNew('trade',NET.tin.filter(t=>t.status==='open'),t=>t.id,t=>{const c=BYID[t.give];return ['🔄 Nouvel échange',(t.fromName||'Un ami')+' te propose '+(c?c.n:'une carte')];});netRefresh();},()=>{});
   db.collection('trades').where('from','==',uid).onSnapshot(s=>{NET.tout=s.docs.map(d=>Object.assign({id:d.id},d.data()));settleTrades();netRefresh();},()=>{});
+  setInterval(()=>{NET.tout.filter(t=>t.status==='open'&&!tradeLeft(t)).forEach(t=>tradeCancel(t.id,true));},60000);
   db.collection('friendships').where('members','array-contains',uid).onSnapshot(s=>{
     NET.friends=new Set(s.docs.map(d=>{const m=(d.data().members)||[];return m[0]===uid?m[1]:m[0];}));netRefresh();},err);
 }
@@ -1774,7 +1790,7 @@ function refreshMarket(){renderBar(); if(view==='market'){const w=document.query
 
 /* ===================== Version 3 : économie, collections, succès, vitrine, échanges ===================== */
 /* --- Diplômes : nouvelle monnaie pour ouvrir les pochettes --- */
-const DIP_INFINITE=true;              /* diplômes illimités pour le moment : la dépense ne réduit pas le solde */
+const DIP_INFINITE=false;             /* mettre à true pour des diplômes illimités */
 const DIP_EVERY=10*60*1000, DIP_CAP=144; /* 1 diplôme toutes les 10 minutes, même hors ligne (jusqu’à 24 h d’absence) */
 const PACK_COIN={mix:150}; const packCoin=t=>PACK_COIN[t]||150;
 const PACK_LIST=['mix',...CK];
@@ -1840,7 +1856,7 @@ function showAchPopup(){
   const g=$('gate'); if(g&&!g.hidden) return;
   let el=$('achpop'); if(!el){el=document.createElement('div');el.id='achpop';el.className='achpop';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label','Succès débloqué');document.body.appendChild(el);}
   const list=ACH_QUEUE.splice(0), shownL=list.slice(0,4), more=list.length-shownL.length, tot=list.reduce((t,x)=>t+tierReward(COLLBY[x.id],x.i),0);
-  el.hidden=false;
+  el.hidden=false; sfx('ach');
   el.innerHTML=`<div class="achpop-in"><div class="achburst" aria-hidden="true">🏆</div><h2>${list.length>1?list.length+' succès débloqués !':'Succès débloqué !'}</h2>
     <ul>${shownL.map(x=>{const co=COLLBY[x.id];return `<li><span class="achic" style="--ac:${co.color}">${co.emoji}</span><span><b>${esc(co.name)}</b><small>Palier ${TNAME[x.i]} : ${TIERS[x.i]} % de la collection</small></span><em>+🎓 ${tierReward(co,x.i)}</em></li>`;}).join('')}</ul>
     ${more>0?`<p class="muted">Et ${more} autre${more>1?'s':''}…</p>`:''}
@@ -1851,12 +1867,12 @@ function showAchPopup(){
 function closeAch(){const el=$('achpop');if(el){el.hidden=true;el.innerHTML='';}}
 function claimAch(id){
   const co=COLLBY[id]; if(!co) return; const p=pendingFor(co); if(!p) return;
-  S.dip=(S.dip||0)+p; S.achC[id]=S.achR[id]; save(); toast(`+🎓 ${fmt(p)} pour « ${co.name} »`); pulseDip(); renderBar(); refreshAch();
+  S.dip=(S.dip||0)+p; S.achC[id]=S.achR[id]; save(); sfx('coin'); toast(`+🎓 ${fmt(p)} pour « ${co.name} »`); pulseDip(); renderBar(); refreshAch();
 }
 function claimAll(){
   let t=0; for(const co of COLLS){const p=pendingFor(co); if(p){t+=p;S.achC[co.id]=S.achR[co.id];}}
   if(!t) return toast('Rien à récupérer pour le moment.');
-  S.dip=(S.dip||0)+t; save(); toast(`+🎓 ${fmt(t)} récupérés !`); pulseDip(); renderBar(); refreshAch();
+  S.dip=(S.dip||0)+t; save(); sfx('coin'); toast(`+🎓 ${fmt(t)} récupérés !`); pulseDip(); renderBar(); refreshAch();
 }
 function achRow(co){
   const g=collGot(co),n=co.ids.length,r=tiersReached(co,g),p=pendingFor(co),done=g>=n;
@@ -1983,7 +1999,7 @@ function startPack(type,qty,cur){
   packs.forEach(p=>{if(p.god)gods++;p.cards.forEach(c=>{isNew.push(!S.coll[c.id]);wished.push(!!S.wish[c.id]);if(!S.coll[c.id])S.got[c.id]=now+cards.length;delete S.wish[c.id];S.coll[c.id]=(S.coll[c.id]||0)+1;cards.push(c);});});
   S.opened+=qty; if(gods) S.gods=(S.gods||0)+gods; save();
   pack={type,qty,cur,pool,cards,isNew,wished,god:gods>0,gods,firstDiamond,best:bestOf(cards),step:'sealed',i:0,flipped:false};
-  savePending(); lock(true); renderOv();
+  savePending(); sfx('buy'); lock(true); renderOv();
 }
 function multiHTML(){
   const order=pack.cards.map((c,i)=>i).sort((a,b)=>RORD[pack.cards[a].r]-RORD[pack.cards[b].r]); pack.order=order;
@@ -1996,7 +2012,7 @@ function runMulti(){
   pack.timers=[];
   els.forEach((el,k)=>{const c=pack.cards[pack.order[k]], big=RORD[c.r]>=3;
     t+= still?0:(big?650:RORD[c.r]===2?260:110);
-    pack.timers.push(setTimeout(()=>{el.classList.add('on');if(big&&!still){el.classList.add('burst-'+c.r);const ov=$('ov');ov.classList.remove('flash-e','flash-l','flash-d');void ov.offsetWidth;ov.classList.add('flash-'+c.r);}
+    pack.timers.push(setTimeout(()=>{el.classList.add('on');if(big)sfx(c.r);else if(k%2===0)sfx('flip');if(big&&!still){el.classList.add('burst-'+c.r);const ov=$('ov');ov.classList.remove('flash-e','flash-l','flash-d');void ov.offsetWidth;ov.classList.add('flash-'+c.r);}
       if(k===els.length-1) endMulti();},t));});
 }
 function endMulti(){const s=$('mskip'),m=$('msum');if(s)s.hidden=true;if(m)m.hidden=false;
@@ -2012,7 +2028,7 @@ function startStarter(){
 }
 function pickStarter(id){
   const c=BYID[id]; if(!c||!pack||!pack.starter) return;
-  giveCard(c); S.starterPick=1; delete S.needStarter; save();
+  giveCard(c); S.starterPick=1; delete S.needStarter; save(); sfx('l');
   pack.cards=[c]; pack.isNew=[true]; pack.winLabel='⭐ Ta première légendaire'; pack.hint='Ta carte de bienvenue. Bonne chance pour compléter ton album !';
   pack.step='win'; renderOv(); setTimeout(()=>{celebrate('l');megaParty('⭐ LÉGENDAIRE ⭐');},250);
 }
@@ -2043,22 +2059,26 @@ function openProfile(uid){
 
 /* --- Échanges entre amis : une carte contre une carte --- */
 let TR=null;
-function tradeOpen(uid){TR={to:uid,give:null,want:null,q:''};tradeRender();}
+function tradeOpen(uid){TR={to:uid,give:null,want:null,q:'',q2:'',theirs:undefined};tradeRender();loadTheirs(uid);}
 function miniGrid(list,act,selId){return `<div class="minigrid">${list.map(c=>`<button class="mini${c.id===selId?' sel':''}" data-act="${act}" data-id="${c.id}" aria-pressed="${c.id===selId}">${cardHTML(c)}${act==='trgive'&&S.coll[c.id]>1?`<span class="qty">×${S.coll[c.id]}</span>`:''}</button>`).join('')}</div>`;}
 function tradeRender(){
   const p=playersView()[TR.to]||{}, q=norm(TR.q||'');
   const mine=CARDS.filter(c=>S.coll[c.id]&&(!q||norm(c.n+' '+c.city).includes(q))).sort((a,b)=>(S.coll[b.id]>1)-(S.coll[a.id]>1)||cardValue(b)-cardValue(a)).slice(0,60);
-  const theirs=[...new Set([...(p.dups||[]),...(p.vitrine||[])])].map(id=>BYID[id]).filter(Boolean);
+  const q2=norm(TR.q2||''), dset=new Set(p.dups||[]);
+  const theirIds=TR.theirs||[...new Set([...(p.dups||[]),...(p.vitrine||[])])];
+  const theirs=theirIds.map(id=>BYID[id]).filter(c=>c&&(shown(c)!=='x'||S.coll[c.id])).filter(c=>!q2||norm(c.n+' '+c.city).includes(q2)).sort((a,b)=>(dset.has(b.id)-dset.has(a.id))||(!S.coll[b.id]-!S.coll[a.id])||cardValue(b)-cardValue(a)).slice(0,60);
   $('sheet').hidden=false; lock(true);
   const still=TR.shown; TR.shown=true;
   $('sheet').innerHTML=`<div class="sheet-in wide${still?' still':''}"><div class="grab"></div><h2>🔄 Échange avec ${esc(p.pseudo||'ton ami')}</h2>
-    <p class="muted">Choisis la carte que tu donnes et celle que tu veux recevoir. Ta carte est mise de côté jusqu’à sa réponse.</p>
+    <p class="muted">Ton ami reçoit une demande et a 48 h pour répondre. Ta carte est mise de côté en attendant, puis te revient si la demande expire.</p>
     <div class="trsum"><div>${TR.give?cardHTML(BYID[TR.give]):'<span class="vslot">Tu donnes</span>'}</div><span class="trarrow">⇄</span><div>${TR.want?cardHTML(BYID[TR.want]):'<span class="vslot">Tu reçois</span>'}</div></div>
     <button class="btn" style="width:100%" data-act="trsend" ${TR.give&&TR.want?'':'disabled'}>Proposer l’échange</button>
     <h3 class="subt">1. Ce que tu donnes</h3><label class="field">${ICON.search}<span class="sr">Chercher dans tes cartes</span><input id="trq" placeholder="Chercher dans tes cartes" value="${esc(TR.q||'')}"></label>
     <div id="trmine">${miniGrid(mine,'trgive',TR.give)}</div>
-    <h3 class="subt">2. Ce que tu reçois (doublons et vitrine de ${esc(p.pseudo||'ton ami')})</h3>
-    ${theirs.length?miniGrid(theirs,'trwant',TR.want):'<p class="empty small">Ton ami n’a ni doublon ni carte en vitrine pour le moment.</p>'}
+    <h3 class="subt">2. Ce que tu reçois, parmi toute la collection de ${esc(p.pseudo||'ton ami')}</h3>
+    <label class="field">${ICON.search}<span class="sr">Chercher dans sa collection</span><input id="trq2" placeholder="Chercher dans sa collection" value="${esc(TR.q2||'')}"></label>
+    <p class="muted small">Ses doublons apparaissent en premier, puis les cartes qui te manquent.</p>
+    <div id="trtheirs">${TR.theirs===undefined?'<p class="empty small">Chargement de sa collection…</p>':theirs.length?miniGrid(theirs,'trwant',TR.want):'<p class="empty small">Aucune carte ne correspond.</p>'}</div>
     <div class="sheet-actions"><button class="btn sec" data-act="closesheet">Annuler</button></div></div>`;
 }
 async function tradeSend(){
@@ -2079,11 +2099,11 @@ async function tradeAccept(id){
   }catch(e){toast('Échange impossible pour le moment.');}
 }
 async function tradeDecline(id){try{await NET.db.doc('trades/'+id).update({status:'declined'});}catch(e){}}
-async function tradeCancel(id){
+async function tradeCancel(id,expired){
   const ref=NET.db.doc('trades/'+id);
   try{const l=await ref.acquire({holder:NET.uid,ttlMs:5000});if(!l.acquired)return toast('Réessaie dans un instant.');
     const s=await ref.get(); if(!s.exists||s.data().status!=='open') return toast('Ton ami vient de répondre.');
-    await ref.delete(); const gid=(S.tescrow&&S.tescrow[id])||s.data().give, c=BYID[gid]; if(c) giveCard(c); if(S.tescrow) delete S.tescrow[id]; save(); toast('Échange annulé, ta carte est revenue.');
+    await ref.delete(); const gid=(S.tescrow&&S.tescrow[id])||s.data().give, c=BYID[gid]; if(c) giveCard(c); if(S.tescrow) delete S.tescrow[id]; save(); toast(expired?'⏳ Un échange a expiré, ta carte est revenue.':'Échange annulé, ta carte est revenue.');
   }catch(e){toast('Action impossible pour le moment.');}
 }
 async function settleTrades(){
@@ -2098,10 +2118,10 @@ async function settleTrades(){
 }
 function tradesHTML(){
   if(!NET.linked) return '';
-  const tin=NET.tin.filter(t=>t.status==='open'), tout=NET.tout.filter(t=>t.status==='open');
+  const tin=NET.tin.filter(t=>t.status==='open'&&tradeLeft(t)), tout=NET.tout.filter(t=>t.status==='open');
   const row=(t,inc)=>{const g=BYID[inc?t.give:t.want],w=BYID[inc?t.want:t.give];if(!g||!w)return '';
     return `<div class="trrow"><div class="trcards"><div><small>${inc?'Tu reçois':'Tu reçois'}</small>${cardHTML(g)}</div><span class="trarrow">⇄</span><div><small>Tu donnes</small>${cardHTML(w)}</div></div>
-      <p class="muted small">${inc?'Proposé par '+esc(t.fromName||'un ami'):'En attente de '+esc(t.toName||'ton ami')}</p>
+      <p class="muted small">${inc?'Proposé par '+esc(t.fromName||'un ami'):'En attente de '+esc(t.toName||'ton ami')}, expire dans ${hoursLeft(t)} h${inc&&S.coll[t.want]===1?'. C’est ton seul exemplaire de cette carte.':''}${inc&&!S.coll[t.want]?'. Tu n’as plus cette carte.':''}</p>
       <div class="ovactions">${inc?`<button class="btn small" data-act="tracc" data-id="${esc(t.id)}" ${S.coll[t.want]?'':'disabled'}>Accepter</button><button class="btn sec small" data-act="trdec" data-id="${esc(t.id)}">Refuser</button>`:`<button class="btn sec small" data-act="trcan" data-id="${esc(t.id)}">Annuler</button>`}</div></div>`;};
   return `${tin.length?`<h3 class="subt">Échanges reçus (${tin.length})</h3><div class="trlist">${tin.map(t=>row(t,true)).join('')}</div>`:''}
     ${tout.length?`<h3 class="subt">Échanges proposés (${tout.length})</h3><div class="trlist">${tout.map(t=>row(t,false)).join('')}</div>`:''}`;
@@ -2233,6 +2253,120 @@ function tradeFromCard(id){
     <div class="sheet-actions"><button class="btn sec" data-act="closesheet">Annuler</button></div></div>`;
 }
 
+/* ===================== Version 6 : sons, récompense quotidienne, notifications, échanges ===================== */
+/* --- Effets sonores synthétisés (aucun fichier à télécharger) --- */
+let AC=null, MASTER=null;
+const soundOn=()=>{try{return localStorage.getItem('mdp-son')!=='off';}catch(e){return true;}};
+function setSound(on){try{localStorage.setItem('mdp-son',on?'on':'off');}catch(e){} if(on) sfx('coin');}
+function ac(){
+  if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C();MASTER=AC.createGain();MASTER.gain.value=.55;MASTER.connect(AC.destination);}
+  if(AC.state==='suspended') AC.resume(); return AC;
+}
+function tone(f,t0,d,type,vol,to){const a=AC,o=a.createOscillator(),g=a.createGain(),t=a.currentTime+t0;
+  o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol||.15,t+.012);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(g);g.connect(MASTER);o.start(t);o.stop(t+d+.05);}
+function noise(t0,d,vol,f1,f2){const a=AC,n=Math.floor(a.sampleRate*d),buf=a.createBuffer(1,n,a.sampleRate),ch=buf.getChannelData(0);
+  for(let i=0;i<n;i++)ch[i]=Math.random()*2-1;const s=a.createBufferSource(),bp=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime+t0;
+  s.buffer=buf;bp.type='bandpass';bp.Q.value=1.2;bp.frequency.setValueAtTime(f1||800,t);bp.frequency.exponentialRampToValueAtTime(f2||4000,t+d);
+  g.gain.setValueAtTime(vol||.3,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(bp);bp.connect(g);g.connect(MASTER);s.start(t);s.stop(t+d+.02);}
+const arp=(notes,step,d,type,vol)=>notes.forEach((f,i)=>tone(f,i*step,d,type,vol));
+const SFX={
+  tap:()=>tone(700,0,.05,'triangle',.07),
+  buy:()=>{tone(392,0,.08,'triangle',.1);tone(587,.06,.12,'triangle',.1);},
+  tear:()=>{noise(0,.18,.25,600,1800);noise(.16,.42,.4,900,6000);tone(160,.15,.35,'sawtooth',.04,60);},
+  god:()=>{noise(0,.9,.35,300,8000);tone(110,0,1.2,'sawtooth',.08,440);arp([523,659,784,1047,1319,1568],.09,.6,'triangle',.12);},
+  flip:()=>{noise(0,.1,.14,2000,5000);tone(900,0,.06,'triangle',.05,1500);},
+  c:()=>tone(523,0,.14,'triangle',.1),
+  u:()=>arp([523,659],.08,.18,'triangle',.12),
+  r:()=>arp([523,659,784],.07,.25,'triangle',.14),
+  e:()=>{arp([523,659,784,1047],.08,.3,'square',.06);tone(1047,.34,.6,'sine',.12);},
+  l:()=>{arp([392,523,659,784],.1,.4,'sawtooth',.05);[523,659,784,1047].forEach(f=>tone(f,.45,1.1,'triangle',.08));arp([1568,2093,2637],.12,.3,'sine',.05);},
+  d:()=>{arp([1047,1319,1568,2093,2637,3136],.06,.5,'sine',.08);[784,1175,1568].forEach(f=>tone(f,.4,1.4,'triangle',.07));noise(.3,.8,.08,4000,9000);},
+  coin:()=>{tone(988,0,.08,'square',.05);tone(1319,.07,.25,'square',.05);},
+  ach:()=>{arp([784,988,1175,1568],.09,.35,'triangle',.12);},
+  notif:()=>{tone(880,0,.12,'sine',.12);tone(1175,.12,.2,'sine',.12);}
+};
+function sfx(n){if(!soundOn())return;try{if(!ac())return;SFX[n]&&SFX[n]();}catch(e){}}
+
+/* --- Fenêtres d’annonce (cadeaux, messages, récompense quotidienne) --- */
+function noticeOpen(){const n=$('notice');return n&&!n.hidden;}
+function showNotice(o){
+  let el=$('notice'); if(!el){el=document.createElement('div');el.id='notice';el.className='achpop';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');document.body.appendChild(el);}
+  el.setAttribute('aria-label',o.title); el.hidden=false;
+  el.innerHTML=`<div class="achpop-in"><div class="achburst" aria-hidden="true">${o.emoji}</div><h2>${o.title}</h2>${o.html||''}
+    <div class="ovactions">${o.actions||'<button class="btn" data-act="noticeok">Super !</button>'}</div></div>`;
+  if(o.sound) sfx(o.sound);
+}
+function closeNotice(){const el=$('notice');if(el){el.hidden=true;el.innerHTML='';}setTimeout(checkGifts,250);}
+/* Récompense de connexion quotidienne : 7 jours qui se suivent, puis on recommence */
+const DAILY=[10,15,20,25,30,40,60];
+const dayKey=d=>{d=d||new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();};
+function dailyState(){
+  const t=dayKey(), y=dayKey(new Date(Date.now()-864e5)), d=S.daily||{};
+  if(d.last===t) return null;
+  const streak=d.last===y?((d.streak||0)%7)+1:1; return {streak,reward:DAILY[streak-1]};
+}
+function showDaily(){
+  const st=dailyState(); if(!st) return false;
+  showNotice({emoji:'🎁',title:'Récompense du jour',sound:'notif',
+    html:`<p class="muted">Connecte-toi chaque jour pour gagner plus de diplômes. Si tu rates un jour, la série recommence.</p>
+      <div class="days">${DAILY.map((r,i)=>`<div class="day${i+1<st.streak?' got':i+1===st.streak?' today':''}"><small>Jour ${i+1}</small><b>🎓 ${r}</b>${i+1<st.streak?'<em>✓</em>':''}</div>`).join('')}</div>`,
+    actions:`<button class="btn" data-act="dailyclaim">Récupérer 🎓 ${st.reward}</button>`});
+  return true;
+}
+function claimDaily(){
+  const st=dailyState(); if(!st) return closeNotice();
+  S.daily={last:dayKey(),streak:st.streak}; S.dip=(S.dip||0)+st.reward; save(); sfx('coin'); pulseDip(); renderBar();
+  toast(`+🎓 ${st.reward} : jour ${st.streak} de ta série`); closeNotice(); if(view==='boosters') carouselUpdate();
+}
+/* Cadeaux uniques : 1 000 diplômes, message pour ocrafix */
+function oneTimeNotices(){
+  if(!S.dip1000){S.dip1000=1;S.dip=(S.dip||0)+1000;save();renderBar();
+    showNotice({emoji:'🎁',title:'1 000 diplômes offerts !',sound:'coin',html:'<p>Pour bien démarrer, voici 🎓 1 000. Chaque pochette coûte 1 diplôme, et tu en gagnes 1 toutes les 10 minutes, chaque jour en te connectant et avec les succès.</p>',actions:'<button class="btn" data-act="noticeok">Ouvrir des pochettes</button>'});
+    return true;}
+  if(me()&&pkey(me().pseudo)==='ocrafix'&&!S.msgOcra1){S.msgOcra1=1;save();
+    showNotice({emoji:'💌',title:'Message de Thibault',sound:'notif',html:'<p class="bigquote">« ça va ma couille alors ta une diamant ? »</p>',actions:'<button class="btn" data-act="noticeok">Répondre en jouant 😏</button>'});
+    return true;}
+  return false;
+}
+
+/* --- Notifications : dans le jeu, et du navigateur quand le jeu est en arrière-plan --- */
+const notifSupported=()=>'Notification' in window;
+const notifOn=()=>notifSupported()&&Notification.permission==='granted';
+async function askNotif(){
+  if(!notifSupported()) return toast('Ton navigateur ne gère pas les notifications.');
+  try{const r=await Notification.requestPermission(); toast(r==='granted'?'Notifications activées 🔔':'Notifications refusées. Tu peux les réactiver dans les réglages du navigateur.');}catch(e){toast('Notifications indisponibles ici.');}
+  if(!$('sheet').hidden) openAccount();
+}
+async function pushNotif(title,body){
+  sfx('notif'); toast(title+(body?' : '+body:''));
+  if(!notifOn()||!document.hidden) return;
+  try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();
+    if(reg&&reg.showNotification) reg.showNotification(title,{body,icon:'icon-192.png',badge:'icon-192.png',tag:'mdp-'+Date.now()});
+    else new Notification(title,{body});}catch(e){}
+}
+const SEEN={};
+function watchNew(kind,list,keyOf,msg){
+  const keys=list.map(keyOf);
+  if(!SEEN[kind]){SEEN[kind]=new Set(keys);return;}
+  keys.forEach((k,i)=>{if(!SEEN[kind].has(k)){SEEN[kind].add(k);const m=msg(list[i]);if(m)pushNotif(m[0],m[1]);}});
+}
+
+/* --- Échanges : toutes les cartes, réponse sous 48 h --- */
+const TRADE_TTL=48*3600*1000;
+const tradeLeft=t=>Math.max(0,TRADE_TTL-(Date.now()-(t.at||0)));
+const hoursLeft=t=>Math.ceil(tradeLeft(t)/3600000);
+async function loadTheirs(uid){
+  try{const d=await NET.db.doc('collections/'+uid).get(); TR.theirs=d.exists?(d.data().ids||[]):null;}catch(e){TR.theirs=null;}
+  if(TR&&TR.to===uid) tradeRender();
+}
+let collSig='';
+async function syncCollection(){
+  const ids=Object.keys(S.coll).filter(id=>S.coll[id]>0).sort(), sig=ids.length+':'+hashStr(ids.join(','));
+  if(sig===collSig) return; try{await NET.db.doc('collections/'+NET.uid).set({ids,updated:Date.now()});collSig=sig;}catch(e){}
+}
+
 /* ===== Comptes ===== */
 const initials=p=>{const w=p.trim().split(/[\s_.\-]+/).filter(Boolean);return ((w[0]||'?')[0]+(w[1]?w[1][0]:(w[0]||'')[1]||'')).toUpperCase();};
 const avColor=p=>`hsl(${hashStr(norm(p))%360} 55% 42%)`;
@@ -2308,6 +2442,7 @@ function openAccount(){
     ${a.online?'':`<div class="acct-block"><h3>Comptes sur cet appareil</h3><div class="acctlist">${others.map(x=>`<button class="acctrow" data-act="switch" data-id="${x.id}">${avatarHTML(x.pseudo,x.av)}<span><b>${esc(x.pseudo)}</b><small>Passer sur ce compte</small></span></button>`).join('')}
       <button class="acctrow add" data-act="newacct"><span class="avatar plus">+</span><span><b>Créer un autre compte</b><small>Avec un nouvel album</small></span></button></div></div>
     <div class="sheet-actions"><button class="btn sec" data-act="logout">Se déconnecter</button><button class="btn sec" data-act="delacct">Supprimer ce compte</button></div>`}
+    <div class="acct-block"><h3>Réglages</h3><div class="sheet-actions" style="margin-top:0"><button class="btn sec" data-act="sound">${soundOn()?'🔊 Sons activés':'🔇 Sons coupés'}</button>${notifSupported()?`<button class="btn sec" data-act="notif" ${notifOn()?'disabled':''}>${notifOn()?'🔔 Notifications activées':'🔔 Activer les notifications'}</button>`:''}</div></div>
     <div class="sheet-actions"><button class="btn sec" data-act="closesheet">Fermer</button></div></div>`;
 }
 
@@ -2352,7 +2487,7 @@ document.addEventListener('click',e=>{
     case 'carto': {if(window.__swiped&&Date.now()-window.__swiped<350)return;const o=wrapOff(+b.dataset.i);if(o)carMove(o);else startPack(curPack(),packQty,'dip');return;}
     case 'qty': packQty=+d.v; return carouselUpdate();
     case 'buy': return startPack(curPack(),packQty,'dip');
-    case 'tradewith': TR={to:d.id,give:d.give,want:null,q:''}; return tradeRender();
+    case 'tradewith': TR={to:d.id,give:d.give,want:null,q:'',q2:'',theirs:undefined}; tradeRender(); return loadTheirs(d.id);
     case 'tradecard': return tradeFromCard(d.id);
     case 'mskip': return skipMulti();
     case 'msum': pack.step='summary'; return renderOv();
@@ -2376,6 +2511,10 @@ document.addEventListener('click',e=>{
     case 'opengift': return openGift(b);
     case 'wingo': pack.step='summary'; return renderOv();
     case 'account': return openAccount();
+    case 'noticeok': return closeNotice();
+    case 'dailyclaim': return claimDaily();
+    case 'sound': setSound(!soundOn()); return openAccount();
+    case 'notif': return askNotif();
     case 'mktab': mkTab=d.v; sellLimit=48; if(view!=='market'){view='market';} return render();
     case 'selldups': return sellAllDups(b);
     case 'sellbank': return sellToBank(d.id,b);
@@ -2426,6 +2565,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('submit',e=>{if(e.target.id==='gateform'){e.preventDefault();GATE_ONLINE?createOnline($('pseudo').value):createAccount($('pseudo').value);}if(e.target.id==='renameform'){e.preventDefault();(me()&&me().online)?renameOnline($('newpseudo').value):renameAccount($('newpseudo').value);}if(e.target.id==='friendform'){e.preventDefault();sendRequest($('friendinput').value);}if(e.target.id==='listform'){e.preventDefault();createListing(e.target.dataset.id,$('listprice').value);}});
 document.addEventListener('input',e=>{if(e.target.id==='pseudo'||e.target.id==='newpseudo'||e.target.id==='friendinput'){if(e.target.id==='friendinput'){const fm=$('friendmsg');if(fm)fm.textContent='';}const m=$(e.target.id+'msg');if(m)m.textContent='';}if(e.target.id==='search'){query=e.target.value;limit=96;$('grid').innerHTML=gridHTML();}
   if(e.target.id==='wsearch'){wq=e.target.value;$('wres').innerHTML=wishResults();}
+  if(e.target.id==='trq2'&&TR){TR.q2=e.target.value;clearTimeout(window.__trq2);window.__trq2=setTimeout(()=>{tradeRender();const i=$('trq2');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},300);}
   if(e.target.id==='trq'&&TR){TR.q=e.target.value;const m=$('trmine');if(m){const q=norm(TR.q);m.innerHTML=miniGrid(CARDS.filter(c=>S.coll[c.id]&&(!q||norm(c.n+' '+c.city).includes(q))).sort((a,b)=>(S.coll[b.id]>1)-(S.coll[a.id]>1)||cardValue(b)-cardValue(a)).slice(0,60),'trgive',TR.give);}}});
 document.addEventListener('change',e=>{
   if(e.target.id==='dupsonly'){sellDupOnly=e.target.checked;sellLimit=48;return refreshMarket();}
