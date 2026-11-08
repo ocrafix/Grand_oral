@@ -1,15 +1,17 @@
-/*
-  Configuration Firebase de Major de promo.
-  Remplace les valeurs ci-dessous par celles de TON projet Firebase
-  (console Firebase > Paramètres du projet > Vos applications > Application Web > Configuration).
-  Tant que ces valeurs ne sont pas remplies, le jeu fonctionne en mode local (sans amis, classement ni marché).
-  Ces clés ne sont pas secrètes : la sécurité est assurée par les règles du fichier firestore.rules.
-*/
-window.FIREBASE_CONFIG = {
-  apiKey: "À_REMPLIR",
-  authDomain: "À_REMPLIR.firebaseapp.com",
-  projectId: "À_REMPLIR",
-  storageBucket: "À_REMPLIR.appspot.com",
-  messagingSenderId: "À_REMPLIR",
-  appId: "À_REMPLIR"
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCrXc6PaAsVyZl-1kA_crjpkJ_JcMAGKGU",
+  authDomain: "major-de-promo.firebaseapp.com",
+  projectId: "major-de-promo",
+  storageBucket: "major-de-promo.firebasestorage.app",
+  messagingSenderId: "896201711059",
+  appId: "1:896201711059:web:2c2692c04040332fdb6326"
 };
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
