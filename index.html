@@ -856,6 +856,82 @@ html,body{overflow-x:hidden}
 .day.today{background:linear-gradient(135deg,#F6DC8E,#C9A045 55%,#F0CD72);border-color:#A87A1E;transform:scale(1.08);box-shadow:0 6px 14px -6px rgba(168,122,30,.8)}
 .bigquote{font-size:20px;font-weight:800;font-style:italic;color:#14204A;margin:10px 0 4px;line-height:1.3}
 #notice .achpop-in p{color:#14204A}
+
+/* ================= Version 7 : responsive toutes plateformes (iPhone, Android, tablettes, ordinateurs) ================= */
+.serial{display:inline-block;font-weight:800;padding:1px 8px;border-radius:99px;background:var(--surface-2)}
+.serial.top{background:linear-gradient(135deg,#F6DC8E,#C9A045 55%,#F0CD72);color:#14204A}
+.snbadge{position:absolute;z-index:3;left:6px;bottom:-7px;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;background:var(--navy);color:#F3D27A;box-shadow:0 0 0 1.5px #F3D27A}
+.snbadge.top{background:#F3D27A;color:#14204A}
+.convrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.convrow .btn{flex:1;min-width:130px}
+/* Les fenêtres trop hautes défilent au lieu d’être coupées en haut */
+.ov{justify-content:flex-start}
+.ov>.stage{margin:auto 0}
+.achpop{display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:calc(56px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.achpop-in{margin:auto 0}
+/* Hauteur réelle de l’écran (barres d’iOS comprises) */
+.sheet-in{max-height:92vh;max-height:92dvh}
+.mgrid{max-height:62vh;max-height:calc(100dvh - 230px)}
+.summary.big{max-height:58vh;max-height:calc(100dvh - 260px)}
+/* Tailles qui s’adaptent à la largeur ET à la hauteur de l’écran */
+.ctrack{height:clamp(210px,min(82vw,calc(100dvh - 340px)),420px)}
+.cslot{width:clamp(120px,min(47vw,calc((100dvh - 340px)*.53)),240px)}
+.deck{width:clamp(170px,min(70vw,calc((100dvh - 250px)*.72)),300px)}
+.sealed{width:clamp(150px,min(64vw,calc((100dvh - 230px)*.56)),280px)}
+.stage .pack{width:100%}
+@media (max-width:480px){.sheet-grid{grid-template-columns:1fr}.sheet-grid>div:first-child{width:min(62vw,230px);margin:0 auto}.sheet h2{text-align:center}}
+/* Barre d’achat sur petits téléphones */
+@media (max-width:400px){
+  .bb-qty .segb{padding:6px 7px;font-size:12px;min-height:34px}
+  .bb-buy{padding:8px 12px;font-size:13px;min-height:48px}
+  .bb-buy b{font-size:16px}
+}
+@media (max-width:350px){
+  .buybar{flex-wrap:wrap;gap:6px}
+  .bb-qty{width:100%;justify-content:space-between}
+  .bb-qty .segb{flex:1}
+  .packpanel{margin-bottom:124px}
+  .coins:not(.dipchip){display:none}
+}
+/* Les messages ne passent plus sous la barre d’achat */
+@media (max-width:859px){.toast{bottom:calc(var(--nav-h) + 92px + env(safe-area-inset-bottom,0px))}}
+/* Téléphones à l’horizontale et écrans peu hauts */
+@media (max-height:520px){
+  .strip{display:none}
+  .appbar-in{padding:6px 16px}
+  .botnav{padding-top:3px}
+  .botnav button span{display:none}
+  .ctrack{height:clamp(170px,calc(100dvh - 200px),300px)}
+  .cslot{width:clamp(100px,calc((100dvh - 200px)*.53),170px)}
+  .deck{width:clamp(130px,calc((100dvh - 150px)*.72),220px)}
+  .sealed{width:clamp(110px,calc((100dvh - 140px)*.56),200px)}
+  .mgrid{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .summary.big .cell{width:calc(16.66% - 8px)}
+  .packpanel .oddsbox{display:none}
+}
+/* Anciens iPhone (iOS 15) : pas d’unités de conteneur, on fixe les tailles des cartes */
+@supports not (container-type:inline-size){
+  .tc{padding:5px;border-radius:9px}
+  .tc-in{border-radius:6px}
+  .tc-head{font-size:9px;padding:5px 6px 4px}
+  .tc-chip{padding:1px 6px}
+  .tc-art{margin:0 5px;border-radius:5px}
+  .tc-body{padding:5px 7px 0;gap:2px}
+  .tc-name{font-size:12px}.tc-name.l{font-size:11px}.tc-name.xl{font-size:10px}
+  .tc-loc{font-size:9px}
+  .tc-foot{font-size:9px;margin:3px 5px 5px;padding:3px 5px}
+  .cback b{font-size:16px}
+  .u-name{font-size:10px}
+}
+/* Anciens Safari sans color-mix : couleurs de secours */
+@supports not (background:color-mix(in srgb,red 50%,blue)){
+  .tc-art{background:var(--fc)}
+  .tc-foot{background:#F3EFE4}
+  .appbar{background:#0E1640}
+  .botnav{background:#0B1233}
+  .achic{background:#F3EFE4}
+  .rrow.mine,.achrow.complete,.tier.ok{background:var(--surface)}
+}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -898,7 +974,9 @@ html,body{overflow-x:hidden}
   function q(base){return {where:(f,op,v)=>q(base.where(f,op,v)),limit:n=>q(base.limit(n)),orderBy:(f,d)=>q(base.orderBy(f,d)),
     get:()=>base.get().then(wrapQuery),onSnapshot:(n,e)=>base.onSnapshot(s=>n(wrapQuery(s)),e)};}
   function colRef(path){const c=fs.collection(path);return Object.assign(q(c),{path,doc:id=>docRef(id?path+'/'+id:c.doc().path)});}
-  const db={doc:docRef,collection:colRef};
+  /* Numéro d’exemplaire : compteur global incrémenté dans une transaction */
+  async function mint(id){const ref=fs.doc('mint/'+id);return fs.runTransaction(async t=>{const s=await t.get(ref);const n=((s.exists&&s.data().n)||0)+1;t.set(ref,{n});return n;});}
+  const db={doc:docRef,collection:colRef,mint};
   const user={id:async()=>{const u=await ready;return u?u.uid:null;},can:async()=>true,isOwner:async()=>false,me:async()=>null};
   window.claude={use:async n=>{const u=await ready;if(!u)return null;return n==='db'?db:n==='user'?user:null;}};
 })();
@@ -1136,7 +1214,7 @@ function gridHTML(){
   if(!list.length) return `<p class="empty">Aucune de tes écoles ne correspond. Essaie un autre nom, une autre ville, une autre région ou une autre rareté.</p>`;
   return `<p class="count">${fmt(list.length)} école${list.length>1?'s':''} affichée${list.length>1?'s':''}</p>
     <div class="grid">${list.slice(0,limit).map(c=>{const n=S.coll[c.id]||0;
-      return `<button class="cell" data-card="${c.id}" aria-label="${esc(c.n)}, ${n} exemplaire${n>1?'s':''}${S.fav[c.id]?', en favori':''}">${cardHTML(c)}${n>1?`<span class="qty">×${n}</span>`:''}${S.fav[c.id]?'<span class="favmark" aria-hidden="true">★</span>':''}</button>`;}).join('')}</div>
+      return `<button class="cell" data-card="${c.id}" aria-label="${esc(c.n)}, ${n} exemplaire${n>1?'s':''}${S.fav[c.id]?', en favori':''}">${cardHTML(c)}${n>1?`<span class="qty">×${n}</span>`:''}${S.fav[c.id]?'<span class="favmark" aria-hidden="true">★</span>':''}${S.serial&&S.serial[c.id]?`<span class="snbadge${S.serial[c.id]<=10?' top':''}">n° ${fmt(S.serial[c.id])}</span>`:''}</button>`;}).join('')}</div>
     ${list.length>limit?`<div class="more"><button class="btn sec" data-act="more">Afficher ${Math.min(96,list.length-limit)} écoles de plus</button></div>`:''}`;
 }
 function albumView(){
@@ -1285,7 +1363,7 @@ function renderOv(){
     ov.innerHTML=`${close}<div class="stage"><div class="summary${pack.cards.length>5?' big':''}"><h2>${pack.god?'✨ God pack ✨<br>':''}${n?`${n} nouvelle${n>1?'s':''} école${n>1?'s':''} !`:'Que des doublons cette fois'}<small class="packval">Valeur de la pochette : 🪙 ${fmt(pack.cards.reduce((t,c)=>t+cardValue(c),0))}</small></h2>
       ${pack.cards.map((c,i)=>`<div class="cell">${cardHTML(c)}${pack.wished[i]?'<span class="badge wish">♥ Souhait</span>':pack.isNew[i]?'<span class="badge">Nouvelle</span>':''}${favBtn(c.id,'favtoggle',true)}</div>`).join('')}</div>
       <p class="hint">Touche l’étoile d’une carte pour la mettre en favori.</p>
-      <div class="ovactions"><button class="btn" data-act="again" ${canPay('dip',pack.qty||1)?'':'disabled'}>${againLabel()}</button><button class="btn sec" data-act="closeov">Terminer</button></div></div>`;
+      <div class="ovactions"><button class="btn" data-act="again" ${canPay('dip',packPrice(pack.type,pack.qty||1))?'':'disabled'}>${againLabel()}</button><button class="btn sec" data-act="closeov">Terminer</button></div></div>`;
   }
 }
 /* Scintillements aux couleurs de la rareté pour les épiques et légendaires */
@@ -1458,7 +1536,9 @@ async function linkLocal(pseudo){
     if(prev&&prev!==id){ const d=readData(prev); if(d) try{localStorage.setItem(dataKey(id),JSON.stringify(d));}catch(e){} } }
   acc.pseudo=pseudo; acc.online=true; ACC.current=id; saveAcc();
   let remote=null; try{ const r=await NET.db.doc('data/users/'+NET.uid+'/save').get(); if(r.exists) remote=r.data(); }catch(e){}
-  S=mergeSave(readData(id)||blank(),remote); NET.linked=true; save(); queueSync(true);
+  S=mergeSave(readData(id)||blank(),remote); NET.linked=true;
+  if(!S.serialBF){S.serialBF=1;Object.keys(S.coll).forEach(queueSerial);}
+  save(); queueSync(true);
   hideGate(); render();
   checkGifts();
 }
@@ -1474,7 +1554,7 @@ async function doSync(){
     syncCollection();
     if(!cur||cur.packs!==p.packs||cur.cards!==p.cards||cur.pseudo!==p.pseudo||cur.value!==p.value||(cur.av||'')!==p.av||JSON.stringify(cur.vitrine||[])!==JSON.stringify(p.vitrine)||JSON.stringify(cur.dups||[])!==JSON.stringify(p.dups)) await NET.db.doc('players/'+NET.uid).set(p);
   }catch(e){ if(e&&e.code==='quota_exceeded') toast('Sauvegarde en ligne impossible pour le moment : la base est pleine.'); }
-  syncing=false; if(syncAgain){syncAgain=false;doSync();}
+  syncing=false; if(syncAgain){syncAgain=false;doSync();} else processSerials();
 }
 async function claimPseudo(p){
   const key=pkey(p);
@@ -1655,7 +1735,7 @@ function dailyOffers(){
 }
 function nextCopyWarn(c){return (S.coll[c.id]||0)<=1;}
 function removeCard(id,n){S.coll[id]=(S.coll[id]||0)-(n||1);if(S.coll[id]<=0){delete S.coll[id];delete S.fav[id];if(S.vitrine)S.vitrine=S.vitrine.filter(x=>x!==id);}}
-function giveCard(c){const isNew=!S.coll[c.id];if(isNew)S.got[c.id]=Date.now();delete S.wish[c.id];S.coll[c.id]=(S.coll[c.id]||0)+1;return isNew;}
+function giveCard(c){const isNew=!S.coll[c.id];if(isNew){S.got[c.id]=Date.now();queueSerial(c.id);}delete S.wish[c.id];S.coll[c.id]=(S.coll[c.id]||0)+1;return isNew;}
 function sellToBank(id,el){
   const c=BYID[id]; if(!c||!S.coll[id]) return;
   if(nextCopyWarn(c)&&el&&el.dataset.armed!=='1'){el.dataset.armed='1';el.textContent='Confirmer : dernier exemplaire';el.classList.add('danger');return;}
@@ -1747,7 +1827,8 @@ function marketBody(){
     const [t,n]=dupTotal(), tx=S.tx||[];
     return `<div class="mkgrid2"><div class="mkbox"><h3>Gagner des pièces</h3><p class="muted">La banque rachète tes doublons à 40 % de leur valeur. Tu peux aussi les vendre plus cher aux autres joueurs.</p>
       <button class="btn" data-act="selldups" ${n?'':'disabled'}>${n?(n>1?`Vendre mes ${fmt(n)} doublons : +🪙 ${fmt(t)}`:`Vendre mon doublon : +🪙 ${fmt(t)}`):'Aucun doublon à vendre'}</button></div>
-      <div class="mkbox"><h3>Dépenser</h3><p class="muted">Chaque jour, la boutique propose 9 cartes, dont une légendaire. Tu peux aussi acheter une école précise depuis l’onglet Souhaits.</p>
+      <div class="mkbox"><h3>Dépenser</h3><p class="muted">La boutique propose 9 cartes par jour. Tu peux aussi convertir tes pièces en diplômes : 🪙 ${COIN_PER_DIP} = 🎓 1.</p>
+      <div class="convrow"><button class="btn sec small" data-act="conv" data-v="10" ${(S.coins||0)<COIN_PER_DIP*10?'disabled':''}>🪙 ${fmt(COIN_PER_DIP*10)} → 🎓 10</button><button class="btn sec small" data-act="conv" data-v="50" ${(S.coins||0)<COIN_PER_DIP*50?'disabled':''}>🪙 ${fmt(COIN_PER_DIP*50)} → 🎓 50</button></div>
       <button class="btn sec" data-act="mktab" data-v="shop">Voir les offres du jour</button></div></div>
       <h2 class="sectitle">Historique</h2>
       ${tx.length?`<ul class="txlist">${tx.map(x=>`<li><span>${esc(x.l)}<small>${new Date(x.t).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small></span><b class="${x.a>=0?'pos':'neg'}">${x.a>=0?'+':'−'}🪙 ${fmt(Math.abs(x.a))}</b></li>`).join('')}</ul>`:'<p class="empty small">Aucune opération pour le moment.</p>'}`;
@@ -1823,7 +1904,7 @@ const NETS=[['IUT','🔧',/^institut universitaire de technologie|^iut\b/],['INS
 const CITIES=['Tours','Paris','Lyon','Toulouse','Bordeaux','Marseille','Lille','Nantes','Rennes','Strasbourg','Montpellier'];
 const COLLS=[], COLLBY={};
 (function(){
-  const add=(id,group,name,emoji,color,ids)=>{if(ids.length<3)return;const co={id,group,name,emoji,color,ids,base:Math.max(1,Math.min(15,Math.round(Math.sqrt(ids.length)/2)))};COLLS.push(co);COLLBY[id]=co;};
+  const add=(id,group,name,emoji,color,ids)=>{if(ids.length<3)return;const co={id,group,name,emoji,color,ids,base:Math.max(3,Math.min(60,Math.round(Math.sqrt(ids.length)*1.5)))};COLLS.push(co);COLLBY[id]=co;};
   CK.forEach(k=>add('cat:'+k,'Catégories',CAT[k].n,CAT[k].e,CAT[k].c,CARDS.filter(c=>c.cat===k).map(c=>c.id)));
   REGS.filter(r=>r&&r!=='Autre').forEach(r=>add('reg:'+r,'Régions',r,'📍','#2F5FD8',CARDS.filter(c=>c.reg===r).map(c=>c.id)));
   NETS.forEach(([n,e,rx,cat])=>add('net:'+n,'Réseaux et écoles du même nom',n,e,'#9C7012',CARDS.filter(c=>(!cat||c.cat===cat)&&rx.test(norm(c.n+' '+c.sig))).map(c=>c.id)));
@@ -1936,7 +2017,7 @@ function packPanel(){
   const t=curPack(), pool=poolFor(t), got=countGot(pool), done=got===pool.length;
   return `<h2 class="pktitle">${esc(packName(t))}</h2>
     <p class="pkcount${done?' done':''}">📚 <b>${fmt(got)} / ${fmt(pool.length)}</b> cartes de cette collection${done?' : complète ✓':''}</p>
-    <details class="oddsbox"><summary>Voir les probabilités</summary>${oddsCardHTML(pool)}<p class="muted small">Chance pour chaque carte. 5 cartes par pochette, dont 1 peu commune ou mieux et 1 rare ou mieux.</p></details>`;
+    <details class="oddsbox"><summary>Voir les probabilités</summary>${oddsCardHTML(pool)}<p class="muted small">Chance pour chaque carte. 5 cartes par pochette, dont 1 peu commune ou mieux et 1 rare ou mieux. Prix : 🎓 ${packPrice(t,1)} la pochette, −10 % par 5, −15 % par 10.</p></details>`;
 }function homeStrip(){
   const tot=pendingTotal();
   return `<div class="strip">
@@ -1945,9 +2026,9 @@ function packPanel(){
 </div>`;
 }
 function buyBar(){
-  const t=curPack(), ok=canPay('dip',packQty);
+  const t=curPack(), price=packPrice(t,packQty), ok=canPay('dip',price);
   return `<div class="bb-qty" role="group" aria-label="Nombre de pochettes">${[1,2,5,10].map(q=>`<button class="segb" data-act="qty" data-v="${q}" aria-pressed="${packQty===q}">×${q}</button>`).join('')}</div>
-    <button class="btn bb-buy" data-act="buy" ${ok?'':'disabled'}><span>Ouvrir ${packQty>1?packQty+' pochettes':'la pochette'}</span><b>🎓 ${packQty}</b></button>`;
+    <button class="btn bb-buy" data-act="buy" ${ok?'':'disabled'}><span>Ouvrir ${packQty>1?packQty+' pochettes':'la pochette'}</span><b>🎓 ${price}</b></button>`;
 }
 function boostersView(){
   return `${homeStrip()}
@@ -1991,12 +2072,12 @@ function makeOne(pool){
 function startPack(type,qty,cur){
   qty=qty||1; const pool=poolFor(type==='god'?'mix':type);
   if(!pool.length) return toast('Aucune école dans cette pochette.');
-  if(cur){const price=cur==='dip'?qty:packCoin(type)*qty;
+  if(cur){const price=cur==='dip'?packPrice(type,qty):packCoin(type)*qty;
     if(!canPay(cur,price)) return toast(cur==='dip'?'Pas assez de diplômes.':`Il te manque 🪙 ${fmt(price-(S.coins||0))}. Vends des doublons au Marché !`);
     pay(cur,price,`${qty} pochette${qty>1?'s':''} ${packName(type)}`);}
   const firstDiamond=!diamondFound(), packs=[]; for(let i=0;i<qty;i++){const p=makeOne(pool);if(type==='god'){p.god=true;}packs.push(p);}
   const cards=[],isNew=[],wished=[],now=Date.now(); let gods=0;
-  packs.forEach(p=>{if(p.god)gods++;p.cards.forEach(c=>{isNew.push(!S.coll[c.id]);wished.push(!!S.wish[c.id]);if(!S.coll[c.id])S.got[c.id]=now+cards.length;delete S.wish[c.id];S.coll[c.id]=(S.coll[c.id]||0)+1;cards.push(c);});});
+  packs.forEach(p=>{if(p.god)gods++;p.cards.forEach(c=>{isNew.push(!S.coll[c.id]);if(!S.coll[c.id])queueSerial(c.id);wished.push(!!S.wish[c.id]);if(!S.coll[c.id])S.got[c.id]=now+cards.length;delete S.wish[c.id];S.coll[c.id]=(S.coll[c.id]||0)+1;cards.push(c);});});
   S.opened+=qty; if(gods) S.gods=(S.gods||0)+gods; save();
   pack={type,qty,cur,pool,cards,isNew,wished,god:gods>0,gods,firstDiamond,best:bestOf(cards),step:'sealed',i:0,flipped:false};
   savePending(); sfx('buy'); lock(true); renderOv();
@@ -2018,7 +2099,7 @@ function runMulti(){
 function endMulti(){const s=$('mskip'),m=$('msum');if(s)s.hidden=true;if(m)m.hidden=false;
   const b=pack&&pack.best; if(b&&RORD[b]>=3&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const L=document.createElement('div');L.className='fxlayer';L.setAttribute('aria-hidden','true');$('ov').appendChild(L);celebrate(b==='d'?'d':b,L);setTimeout(()=>L.remove(),6000);}}
 function skipMulti(){(pack.timers||[]).forEach(clearTimeout);document.querySelectorAll('#mgrid .mflip').forEach(el=>el.classList.add('on'));endMulti();}
-function againLabel(){return `Rouvrir ×${pack.qty||1} : 🎓 ${pack.qty||1}`;}
+function againLabel(){return `Rouvrir ×${pack.qty||1} : 🎓 ${packPrice(pack.type,pack.qty||1)}`;}
 
 /* --- Cadeau de bienvenue : une légendaire au choix --- */
 function startStarter(){
@@ -2300,7 +2381,7 @@ function showNotice(o){
 }
 function closeNotice(){const el=$('notice');if(el){el.hidden=true;el.innerHTML='';}setTimeout(checkGifts,250);}
 /* Récompense de connexion quotidienne : 7 jours qui se suivent, puis on recommence */
-const DAILY=[10,15,20,25,30,40,60];
+const DAILY=[20,30,40,50,60,80,150];
 const dayKey=d=>{d=d||new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();};
 function dailyState(){
   const t=dayKey(), y=dayKey(new Date(Date.now()-864e5)), d=S.daily||{};
@@ -2323,7 +2404,7 @@ function claimDaily(){
 /* Cadeaux uniques : 1 000 diplômes, message pour ocrafix */
 function oneTimeNotices(){
   if(!S.dip1000){S.dip1000=1;S.dip=(S.dip||0)+1000;save();renderBar();
-    showNotice({emoji:'🎁',title:'1 000 diplômes offerts !',sound:'coin',html:'<p>Pour bien démarrer, voici 🎓 1 000. Chaque pochette coûte 1 diplôme, et tu en gagnes 1 toutes les 10 minutes, chaque jour en te connectant et avec les succès.</p>',actions:'<button class="btn" data-act="noticeok">Ouvrir des pochettes</button>'});
+    showNotice({emoji:'🎁',title:'1 000 diplômes offerts !',sound:'coin',html:'<p>Pour bien démarrer, voici 🎓 1 000, de quoi ouvrir une centaine de pochettes. Tu gagnes ensuite des diplômes toutes les 10 minutes, chaque jour en te connectant et avec les succès.</p>',actions:'<button class="btn" data-act="noticeok">Ouvrir des pochettes</button>'});
     return true;}
   if(me()&&pkey(me().pseudo)==='ocrafix'&&!S.msgOcra1){S.msgOcra1=1;save();
     showNotice({emoji:'💌',title:'Message de Thibault',sound:'notif',html:'<p class="bigquote">« ça va ma couille alors ta une diamant ? »</p>',actions:'<button class="btn" data-act="noticeok">Répondre en jouant 😏</button>'});
@@ -2365,6 +2446,51 @@ let collSig='';
 async function syncCollection(){
   const ids=Object.keys(S.coll).filter(id=>S.coll[id]>0).sort(), sig=ids.length+':'+hashStr(ids.join(','));
   if(sig===collSig) return; try{await NET.db.doc('collections/'+NET.uid).set({ids,updated:Date.now()});collSig=sig;}catch(e){}
+}
+
+/* ===================== Version 7 : numéros d’exemplaire, dates, économie rééquilibrée ===================== */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+/* --- Prix des pochettes en diplômes (réductions par lot) --- */
+const PACK_DIP={mix:10}; const PACK_DISC={1:1,2:1,5:.9,10:.85};
+const packPrice=(t,q)=>Math.round((PACK_DIP[t]||12)*(q||1)*(PACK_DISC[q||1]||1));
+const COIN_PER_DIP=50; /* convertir des pièces en diplômes */
+function convertCoins(n,el){
+  const cost=n*COIN_PER_DIP; if((S.coins||0)<cost) return toast(`Il te faut 🪙 ${fmt(cost)} pour ${n} diplômes.`);
+  addTx(-cost,`Conversion en ${n} diplômes`); S.dip=(S.dip||0)+n; save(); sfx('coin'); pulseDip(); renderBar(); refreshMarket(); toast(`+🎓 ${n}`);
+}
+/* --- Numéro d’exemplaire : le 1er joueur à obtenir une carte reçoit le n° 1, etc. --- */
+function queueSerial(id){if(S.serial&&S.serial[id])return;S.serialQ=S.serialQ||{};S.serialQ[id]=1;}
+let minting=false;
+async function mintOne(id){
+  if(NET.db.mint){try{return await NET.db.mint(id);}catch(e){return 0;}}
+  const ref=NET.db.doc('mint/'+id);
+  for(let k=0;k<6;k++){try{const l=await ref.acquire({holder:NET.uid,ttlMs:3000});
+      if(l.acquired){const s=await ref.get();const n=((s.exists&&s.data().n)||0)+1;await ref.set({n});return n;}}catch(e){}
+    await sleep(400+Math.random()*700);}
+  return 0;
+}
+async function processSerials(){
+  if(minting||!NET.linked) return; const q=Object.keys(S.serialQ||{}); if(!q.length) return; minting=true;
+  S.serial=S.serial||{};
+  for(const id of q.slice(0,30)){
+    if(S.serial[id]){delete S.serialQ[id];continue;}
+    const n=await mintOne(id); if(n){S.serial[id]=n;delete S.serialQ[id];}
+    await sleep(150);
+  }
+  minting=false; save();
+  if(!$('sheet').hidden&&$('sheet').dataset.card) openSheet($('sheet').dataset.card);
+  if(Object.keys(S.serialQ||{}).length) setTimeout(processSerials,1500);
+}
+function serialHTML(c){
+  const sn=S.serial&&S.serial[c.id];
+  if(!S.coll[c.id]&&!sn) return '';
+  if(sn) return `<dt>Ton exemplaire</dt><dd><span class="serial${sn<=10?' top':''}">n° ${fmt(sn)}</span>${sn===1?' <small>premier joueur à l’obtenir !</small>':sn<=10?' <small>parmi les 10 premiers !</small>':''}</dd>`;
+  return `<dt>Ton exemplaire</dt><dd class="muted">${NET.linked?'numéro en cours d’attribution…':'attribué en mode en ligne'}</dd>`;
+}
+function gotHTML(c){
+  if(!S.coll[c.id]) return '';
+  const t=S.got&&S.got[c.id];
+  return `<dt>Obtenue le</dt><dd>${t?new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+' à '+new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'<span class="muted">avant le suivi des dates</span>'}</dd>`;
 }
 
 /* ===== Comptes ===== */
@@ -2448,7 +2574,7 @@ function openAccount(){
 
 /* ===== Fiche ===== */
 function openSheet(id){
-  const c=CARDS.find(x=>x.id===id); if(!c) return;
+  const c=CARDS.find(x=>x.id===id); if(!c) return; $('sheet').dataset.card=id;
   const n=S.coll[c.id]||0;
   $('sheet').hidden=false; lock(true);
   $('sheet').innerHTML=`<div class="sheet-in"><div class="grab"></div><div class="sheet-grid"><div class="${n?'':'dim'}">${cardHTML(c)}</div>
@@ -2458,7 +2584,7 @@ function openSheet(id){
       <dt>Catégorie</dt><dd>${CAT[c.cat].n}</dd><dt>Rareté</dt><dd style="color:${RC[shown(c)]}">${GEM[shown(c)]} ${RAR[shown(c)]}</dd>
       <dt>Numéro</dt><dd>${c.no} sur ${fmt(CARDS.length)}</dd>
       <dt>Valeur</dt><dd>🪙 ${shownValue(c)}${n>1&&shown(c)!=='x'?` (×${n} = 🪙 ${fmt(cardValue(c)*n)})`:''}</dd>
-      <dt>Exemplaires</dt><dd>${n?n:'Pas encore obtenue'}</dd></dl></div></div>
+      <dt>Exemplaires</dt><dd>${n?n:'Pas encore obtenue'}</dd>${serialHTML(c)}${gotHTML(c)}</dl></div></div>
     ${historyHTML(c)}
     ${n?`<div class="sheet-actions"><button class="btn sec" data-act="vitrine" data-id="${c.id}">${vitrine().includes(c.id)?'🏛️ Retirer de ma vitrine':'🏛️ Ajouter à ma vitrine'}</button>${NET.linked?`<button class="btn sec" data-act="tradecard" data-id="${c.id}">🔄 Échanger</button>`:''}</div>`:''}
     ${n?`<div class="sheet-actions"><button class="btn sec" data-act="sellbank" data-id="${c.id}">Vendre à la banque 🪙 ${fmt(bankPrice(c))}</button>${NET.linked?`<button class="btn sec" data-act="listcard" data-id="${c.id}">Vendre aux joueurs</button>`:''}</div>`
@@ -2466,7 +2592,7 @@ function openSheet(id){
     <div class="sheet-actions">${n?`<button class="btn ${S.fav[c.id]?'sec':''}" data-act="fav" data-id="${c.id}" aria-pressed="${!!S.fav[c.id]}">${S.fav[c.id]?'★ Retirer le favori':'☆ Mettre en favori'}</button>`
       :`<button class="btn ${S.wish[c.id]?'sec':''}" data-act="wish" data-id="${c.id}" aria-pressed="${!!S.wish[c.id]}">${S.wish[c.id]?'♥ Retirer des souhaits':'♡ Ajouter à mes souhaits'}</button>`}<button class="btn sec" data-act="closesheet">Fermer</button></div></div>`;
 }
-function closeSheet(){$('sheet').hidden=true;$('sheet').innerHTML='';lock(false);if(view!=='boosters')render();}
+function closeSheet(){delete $('sheet').dataset.card;$('sheet').hidden=true;$('sheet').innerHTML='';lock(false);if(view!=='boosters')render();}
 
 /* ===== Interactions ===== */
 document.addEventListener('click',e=>{
@@ -2511,6 +2637,7 @@ document.addEventListener('click',e=>{
     case 'opengift': return openGift(b);
     case 'wingo': pack.step='summary'; return renderOv();
     case 'account': return openAccount();
+    case 'conv': return convertCoins(+d.v,b);
     case 'noticeok': return closeNotice();
     case 'dailyclaim': return claimDaily();
     case 'sound': setSound(!soundOn()); return openAccount();

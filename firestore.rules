@@ -46,6 +46,12 @@ service cloud.firestore {
                     && request.resource.data.cardId == resource.data.cardId;
       allow delete: if signedIn() && resource.data.seller == me();
     }
+    // Numéros d'exemplaire : un compteur par carte, qui ne peut qu'avancer de 1.
+    match /mint/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.n == 1;
+      allow update: if signedIn() && request.resource.data.n == resource.data.n + 1;
+    }
     // Liste des cartes de chaque joueur, pour choisir une carte à demander en échange.
     match /collections/{uid} {
       allow read: if signedIn();
