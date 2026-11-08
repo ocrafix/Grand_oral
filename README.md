@@ -1,6 +1,6 @@
 # 🎓 Major de promo
 
-Le jeu de cartes à collectionner des écoles supérieures de France : ouvre des pochettes gratuites, complète ton album de plus de 7 000 écoles et lycées, échange avec tes amis et grimpe dans le classement. bahhhhhhhh
+Le jeu de cartes à collectionner des écoles supérieures de France : ouvre des pochettes gratuites, complète ton album de plus de 7 000 écoles et lycées, échange avec tes amis et grimpe dans le classement.
 
 - **Partout** : pochettes payées en diplômes 🎓 (1 diplôme offert toutes les 10 minutes, d’autres avec les succès), ouverture par 1, 2, 5 ou 10, album, souhaits, favoris, collections et succès, vitrine, banque et boutique.
 - **En ligne pour tous les joueurs** (avec Firebase) : pseudos uniques, demandes d’amis, classements, profils avec vitrine, échanges de cartes entre amis, marché entre joueurs et sauvegarde de l’album.
