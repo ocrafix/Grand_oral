@@ -829,6 +829,22 @@ h1.pt::after{content:"";display:block;width:92px;height:3px;margin-top:8px;borde
 .histo p{margin:0 0 6px;font-size:14px;line-height:1.5;color:var(--ink)}
 .histo ul{margin:0;padding-left:18px;font-size:13px;color:var(--muted)}
 .histo li{margin:3px 0}
+
+/* Version 5 : écrans épurés, aucun défilement latéral */
+html,body{overflow-x:hidden}
+.ov{overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y}
+.ov .stage{max-width:100%;overflow-x:clip}
+.mgrid,.summary.big{overflow-x:hidden;position:relative}
+.fxlayer{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:5}
+.deck{overflow:visible}
+.fwk,.confetti,.megabanner{max-width:100vw}
+.oddsbox{margin:4px auto 0;max-width:420px}
+.oddsbox>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);list-style:none;padding:6px}
+.oddsbox>summary::-webkit-details-marker{display:none}
+.oddsbox>summary::after{content:" ▾"}
+.oddsbox[open]>summary::after{content:" ▴"}
+.oddsbox p{margin:8px 0 0}
+.packpanel .pkcount{margin-bottom:2px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -1118,7 +1134,7 @@ function albumView(){
   const box=(label,[g,a],col)=>`<div class="statbox"><b>${fmt(g)}<span> / ${fmt(a)}</span></b><span>${label}</span><div class="bar"><i style="width:${(g/a*100).toFixed(1)}%;${col?`background:${col}`:''}"></i></div></div>`;
   const chip=(k,l,c)=>`<button class="chip" data-filter="${k}" aria-pressed="${filter===k}" ${c?`style="--fc:${c}"`:''}>${c?'<i></i>':''}${l}</button>`;
   return `<h1 class="pt">Mon album</h1>
-    <p class="lead">Ton album ne montre que les écoles que tu as obtenues. Les compteurs indiquent ta progression sur l’ensemble des écoles.</p>
+    
     <div class="valbox"><span>Valeur de ta collection</span><b>🪙 ${fmt(collectionValue())}</b><small>doublons compris</small></div>
     <div class="stats">${box('Écoles obtenues',[o,t])}${visibleRK().map(k=>box(`<i style="color:${RC[k]}">${GEM[k]}</i> ${RARP[k]}`,byR(k),RC[k])).join('')}</div>
     <div class="filters">
@@ -1155,7 +1171,7 @@ function wishView(){
     <div class="filters"><div class="row"><label class="field">${ICON.search}<span class="sr">Rechercher dans toutes les écoles</span><input id="wsearch" type="search" placeholder="Toutes les écoles : nom, sigle ou ville" value="${esc(wq)}" autocomplete="off"></label></div></div>
     <div id="wres">${wishResults()}</div>
     <h2 class="sectitle">Ma liste <span class="muted" id="wcount">(${Object.keys(S.wish).length})</span></h2>
-    <div id="wlist">${wishList()}</div>${credit()}`;
+    <div id="wlist">${wishList()}</div>`;
 }
 
 /* ===== Rendu ===== */
@@ -1209,9 +1225,9 @@ function renderOv(){
   const close=(pack.step==='summary'||!['sealed','god','reveal','multi','reel','win','starter','giftbox'].includes(pack.step))?`<button class="ov-close" data-act="closeov" aria-label="Fermer">✕</button>`:'';
   if(!['sealed','god','reveal','multi','reel','win','starter','giftbox'].includes(pack.step)) clearPending();
   if(pack.step==='sealed'){
-    const aura=pack.god?'g':pack.best, n=Math.min(pack.qty||1,10);
+    const n=Math.min(pack.qty||1,10), fresh=new Set(pack.cards.filter((c,i)=>pack.isNew[i]).map(c=>c.id)).size;
     ov.innerHTML=`${close}<div class="stage"><p class="counter">${(pack.qty||1)>1?`${pack.qty} pochettes ${esc(packName(pack.type))}`:esc(packName(pack.type))}</p>
-      <div class="sealed aura-${aura}" data-act="tear" role="button" tabindex="0" aria-label="Ouvrir">${n>1?`<div class="pkstack">${Array.from({length:n},(x,k)=>`<span class="stk" style="--k:${k};--n:${n}">${packHTML(pack.type)}</span>`).join('')}</div>`:packHTML(pack.type)}<span class="slit"></span></div>
+      <div class="sealed aura-c" data-act="tear" role="button" tabindex="0" aria-label="Ouvrir">${n>1?`<div class="pkstack">${Array.from({length:n},(x,k)=>`<span class="stk" style="--k:${k};--n:${n}">${packHTML(pack.type,false,fresh)}</span>`).join('')}</div>`:packHTML(pack.type,false,fresh)}<span class="slit"></span></div>
       <p class="hint">Touche ${n>1?'les pochettes':'la pochette'} pour ${n>1?'les':'la'} déchirer</p></div>`;
   }else if(pack.step==='starter'){
     ov.innerHTML=`<div class="stage starter"><p class="giftkicker">Bienvenue dans Major de promo</p><h2 class="gifttitle">Choisis ta légendaire !</h2>
@@ -1334,7 +1350,6 @@ function checkGifts(){
   dipTick();
   if(S.pendingPack&&resumePending()) return;
   if(S.needStarter&&!S.starterPick) return void setTimeout(()=>{if(!pack)startStarter();},500);
-  if(me()&&pkey(me().pseudo)==='ocrafix'&&!S.giftOcrafix) return void setTimeout(()=>{if(!pack)startSurprise();},600);
   checkAchievements(); showAchPopup();
 }
 function startSurprise(){
@@ -1551,7 +1566,7 @@ function rankView(){
     <div class="segs"><div class="seg" role="group" aria-label="Joueurs">${seg('rankscope','all','Tous les joueurs',rankScope)}${seg('rankscope','friends','Mes amis',rankScope)}</div>
       <div class="seg" role="group" aria-label="Classer par">${seg('rankby','packs','Pochettes ouvertes',rankBy)}${seg('rankby','cards','Cartes obtenues',rankBy)}${seg('rankby','value','Valeur',rankBy)}</div></div>
     <div id="ranklist">${rankList()}</div>
-    <h2 class="sectitle">Amis</h2><div id="friendzone">${friendZone()}</div>${credit()}`;
+    <h2 class="sectitle">Amis</h2><div id="friendzone">${friendZone()}</div>`;
 }
 async function sendRequest(v){
   const m=$('friendmsg'), say=t=>{if(m)m.textContent=t;};
@@ -1753,7 +1768,7 @@ function marketView(){
   const seg=(v,l)=>`<button class="segb" data-act="mktab" data-v="${v}" aria-pressed="${mkTab===v}">${l}</button>`;
   return `<h1 class="pt">Marché</h1>${walletHTML()}
     <div class="segs"><div class="seg seg4" role="group" aria-label="Rubriques du marché">${seg('wallet','Portefeuille')}${seg('shop','Boutique')}${seg('sell','Vendre')}${seg('players','Entre joueurs')}</div></div>
-    <div id="mkbody">${marketBody()}</div>${credit()}`;
+    <div id="mkbody">${marketBody()}</div>`;
 }
 function refreshMarket(){renderBar(); if(view==='market'){const w=document.querySelector('.wallet');if(w)w.outerHTML=walletHTML();const b=$('mkbody');if(b)b.innerHTML=marketBody();} else if(view==='album'){render();}}
 
@@ -1855,12 +1870,12 @@ function achRow(co){
 function achView(){
   checkAchievements(true);
   const tot=pendingTotal(), reached=COLLS.reduce((t,co)=>t+((S.achR||{})[co.id]||0),0), ng=nextGoal();
-  return `<h1 class="pt">Succès</h1><p class="lead">Complète des collections à 10, 25, 50, 75 et 100 % pour gagner des diplômes 🎓. Touche une collection pour voir ce qu’il te manque.</p>
+  return `<h1 class="pt">Succès</h1><p class="lead">Complète tes collections pour gagner des diplômes 🎓.</p>
     <div class="achhead"><div><b>${fmt(reached)}</b><span>paliers atteints sur ${fmt(COLLS.length*5)}</span></div>
       <div><b>🎓 ${fmt(tot)}</b><span>à récupérer</span></div>
       <button class="btn" data-act="claimall" ${tot?'':'disabled'}>Tout récupérer</button></div>
     ${ng?`<button class="nextgoal" data-act="coll" data-id="${esc(ng.co.id)}">🎯 Objectif le plus proche : <b>${esc(ng.co.name)}</b>, encore ${fmt(ng.need)} carte${ng.need>1?'s':''} pour +🎓 ${tierReward(ng.co,ng.i)}</button>`:''}
-    <div id="achlist">${achList()}</div>${credit()}`;
+    <div id="achlist">${achList()}</div>`;
 }
 let groupsInit=false;
 function achList(){if(!groupsInit){groupsInit=true;GROUPS.forEach(gr=>{if(COLLS.some(co=>co.group===gr&&pendingFor(co)))openGroups.add(gr);});}return `<div class="achgroups">${GROUPS.map(achGroupHTML).join('')}</div>`;}
@@ -1905,13 +1920,13 @@ function packPanel(){
   const t=curPack(), pool=poolFor(t), got=countGot(pool), done=got===pool.length;
   return `<h2 class="pktitle">${esc(packName(t))}</h2>
     <p class="pkcount${done?' done':''}">📚 <b>${fmt(got)} / ${fmt(pool.length)}</b> cartes de cette collection${done?' : complète ✓':''}</p>
-    <p class="oddcap">Chance pour chaque carte</p>${oddsCardHTML(pool)}`;
+    <details class="oddsbox"><summary>Voir les probabilités</summary>${oddsCardHTML(pool)}<p class="muted small">Chance pour chaque carte. 5 cartes par pochette, dont 1 peu commune ou mieux et 1 rare ou mieux.</p></details>`;
 }function homeStrip(){
-  const tot=pendingTotal(), ng=nextGoal();
+  const tot=pendingTotal();
   return `<div class="strip">
     <span class="schip">🎓 <b>+1</b> dans <span class="diptimer">…</span></span>
     ${tot?`<button class="schip hot" data-view="ach">🎁 🎓 ${fmt(tot)} à récupérer</button>`:''}
-    ${ng?`<button class="schip" data-act="coll" data-id="${esc(ng.co.id)}">🎯 ${esc(ng.co.name)} : encore ${fmt(ng.need)} carte${ng.need>1?'s':''}</button>`:''}</div>`;
+</div>`;
 }
 function buyBar(){
   const t=curPack(), ok=canPay('dip',packQty);
@@ -1925,10 +1940,8 @@ function boostersView(){
       <div class="ctrack">${PACK_LIST.map((t,i)=>`<div class="${slotClass(wrapOff(i))}" data-i="${i}" data-act="carto">${packHTML(t)}</div>`).join('')}</div>
       <button class="carr r" data-act="carnext" aria-label="Pochette suivante">›</button></div>
     <div class="cdots" aria-hidden="true">${PACK_LIST.map((x,i)=>`<i data-i="${i}"></i>`).join('')}</div>
-    <p class="swipehint">Glisse pour changer de pochette, touche-la pour l’ouvrir</p>
     <div class="buybar" id="buybar">${buyBar()}</div>
-    <div class="packpanel" id="packpanel">${packPanel()}</div>
-    <p class="oddsnote">Chaque pochette coûte 1 diplôme 🎓${DIP_INFINITE?' (illimités pour le moment)':''}. Tu en gagnes 1 toutes les 10 minutes, même hors ligne, et d’autres avec les succès. Chaque pochette contient 5 cartes : 3 cartes libres, 1 peu commune ou mieux et 1 rare ou mieux, avec ${GOD_CHANCE} % de chance de se transformer en God pack.</p>${credit()}`;
+    <div class="packpanel" id="packpanel">${packPanel()}</div>`;
 }function carouselUpdate(){
   const n=PACK_LIST.length, cur=(packIdx%n+n)%n;
   document.querySelectorAll('.ctrack .cslot').forEach(el=>{el.className=slotClass(wrapOff(+el.dataset.i));});
@@ -1941,9 +1954,9 @@ document.addEventListener('pointerdown',e=>{if(e.target.closest('#carousel')) sw
 document.addEventListener('pointerup',e=>{if(swipeX==null)return;const dx=e.clientX-swipeX;swipeX=null;if(Math.abs(dx)>40){carMove(dx<0?1:-1);window.__swiped=Date.now();}});
 document.addEventListener('keydown',e=>{if(view!=='boosters'||pack||!$('sheet').hidden)return;if(e.key==='ArrowRight')carMove(1);if(e.key==='ArrowLeft')carMove(-1);});
 
-function packHTML(t,stage){
+function packHTML(t,stage,minus){
   const mix=t==='mix',god=t==='god',k=god?{n:'God pack',e:'✨',c:'#7873F5'}:mix?{n:'Toutes catégories',e:'🎓',c:'#6B3FE0'}:CAT[t];
-  const pool=poolFor(t), got=countGot(pool), done=got===pool.length;
+  const pool=poolFor(t), got=countGot(pool)-(minus||0), done=got===pool.length;
   return `<span class="pack ${mix?'r-mix':''}${god?'r-god':''}" style="--fc:${k.c}" ${stage?'data-act="tear" role="button" tabindex="0" aria-label="Ouvrir la pochette"':''}>
     <span class="crimp top" style="clip-path:${ZIG}"></span>
     <span class="pack-body"><span class="pk-band"></span><span class="pk-logo"><b>Major</b><small>DE PROMO</small></span>
@@ -1987,7 +2000,7 @@ function runMulti(){
       if(k===els.length-1) endMulti();},t));});
 }
 function endMulti(){const s=$('mskip'),m=$('msum');if(s)s.hidden=true;if(m)m.hidden=false;
-  const b=pack&&pack.best; if(b&&RORD[b]>=3&&!matchMedia('(prefers-reduced-motion: reduce)').matches){celebrate(b==='d'?'d':b,document.querySelector('#mgrid'));}}
+  const b=pack&&pack.best; if(b&&RORD[b]>=3&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const L=document.createElement('div');L.className='fxlayer';L.setAttribute('aria-hidden','true');$('ov').appendChild(L);celebrate(b==='d'?'d':b,L);setTimeout(()=>L.remove(),6000);}}
 function skipMulti(){(pack.timers||[]).forEach(clearTimeout);document.querySelectorAll('#mgrid .mflip').forEach(el=>el.classList.add('on'));endMulti();}
 function againLabel(){return `Rouvrir ×${pack.qty||1} : 🎓 ${pack.qty||1}`;}
 
