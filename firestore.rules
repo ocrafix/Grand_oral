@@ -1,0 +1,65 @@
+rules_version = '2';
+// Règles de sécurité de Grand Oral : à copier dans Firebase > Firestore Database > Règles, puis « Publier ».
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+
+    // Profil public de chaque joueur (pseudo, photo, scores) : lisible par tous, modifiable par son propriétaire.
+    match /players/{uid} {
+      allow read: if true;
+      allow write: if signedIn() && me() == uid && request.resource.data.pseudo is string
+                   && request.resource.data.pseudo.size() >= 3 && request.resource.data.pseudo.size() <= 20;
+    }
+    // Sauvegarde privée de l'album : uniquement son propriétaire.
+    match /data/users/{uid}/{doc} {
+      allow read, write: if signedIn() && me() == uid;
+    }
+    // Réservation des pseudos (un pseudo = un seul joueur).
+    match /pseudos/{key} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.uid == me();
+      allow update: if signedIn() && resource.data.uid == me() && request.resource.data.uid == me();
+      allow delete: if signedIn() && resource.data.uid == me();
+    }
+    // Demandes d'amis.
+    match /requests/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.from == me() && request.resource.data.to != me();
+      allow delete: if signedIn() && (resource.data.from == me() || resource.data.to == me());
+    }
+    // Amitiés (paire de joueurs).
+    match /friendships/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && me() in request.resource.data.members && request.resource.data.members.size() == 2;
+      allow delete: if signedIn() && me() in resource.data.members;
+    }
+    // Marché entre joueurs.
+    match /market/{id} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.seller == me() && request.resource.data.status == 'open'
+                    && request.resource.data.price is int && request.resource.data.price > 0;
+      allow update: if signedIn() && resource.data.status == 'open' && resource.data.seller != me()
+                    && request.resource.data.status == 'sold' && request.resource.data.buyer == me()
+                    && request.resource.data.price == resource.data.price
+                    && request.resource.data.seller == resource.data.seller
+                    && request.resource.data.cardId == resource.data.cardId;
+      allow delete: if signedIn() && resource.data.seller == me();
+    }
+    // Échanges entre amis : une carte contre une carte.
+    match /trades/{id} {
+      allow read: if signedIn() && (resource.data.from == me() || resource.data.to == me());
+      allow create: if signedIn() && request.resource.data.from == me() && request.resource.data.to != me()
+                    && request.resource.data.status == 'open';
+      allow update: if signedIn() && resource.data.to == me() && resource.data.status == 'open'
+                    && request.resource.data.status in ['accepted', 'declined']
+                    && request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to
+                    && request.resource.data.give == resource.data.give && request.resource.data.want == resource.data.want;
+      allow delete: if signedIn() && resource.data.from == me();
+    }
+    // Verrous courts utilisés pour éviter les doubles achats et les pseudos en double.
+    match /leases/{id} {
+      allow read, write: if signedIn();
+    }
+  }
+}
