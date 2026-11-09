@@ -1086,7 +1086,8 @@ const dataKey=id=>KEY+':'+(id||ACC.current);
 const me=()=>ACC.list.find(a=>a.id===ACC.current)||null;
 function readData(id){try{const s=JSON.parse(localStorage.getItem(dataKey(id))||'null');if(s&&s.coll)return Object.assign(blank(),s);}catch(e){}return null;}
 function load(){if(!ACC.current) return blank(); return readData()||blank();}
-function save(){if(!ACC.current) return; try{localStorage.setItem(dataKey(),JSON.stringify(S));}catch(e){} if(NET.linked) queueSync();}
+function save(){if(!ACC.current) return; S.ts=Date.now(); try{localStorage.setItem(dataKey(),JSON.stringify(S));}catch(e){} if(NET.linked) queueSync();}
+function saveLocal(){if(!ACC.current) return; try{localStorage.setItem(dataKey(),JSON.stringify(S));}catch(e){}}
 let S=load();
 /* Les anciens favoris d’écoles non obtenues deviennent des souhaits */
 Object.keys(S.fav).forEach(id=>{if(!S.coll[id]){S.wish[id]=1;delete S.fav[id];}});
@@ -1571,18 +1572,27 @@ async function onlineStart(){
   else if(NET.canWrite){ hideGate(); showGate(false,true); }
   renderBar(); if(view==='rank') render();
 }
+/* Fusion de deux sauvegardes du même compte (cet appareil et le serveur).
+   La plus récente sert de base ; les récompenses déjà touchées d’un côté restent touchées des deux côtés. */
+const ONCE=['dip1000','coinsInit','giftGrandmont','giftOcrafix','msgOcra1','starterPick','serialBF'];
 function mergeSave(a,b){
   if(!b||!b.coll) return a;
-  const r=Object.assign(blank(),a);
-  r.coll=Object.assign({},a.coll); for(const k in b.coll) r.coll[k]=Math.max(r.coll[k]||0,b.coll[k]);
-  r.fav=Object.assign({},b.fav||{},a.fav); r.wish=Object.assign({},b.wish||{},a.wish);
-  for(const k in r.wish) if(r.coll[k]) delete r.wish[k];
-  r.got=Object.assign({},b.got||{},a.got); r.opened=Math.max(a.opened||0,b.opened||0); r.gods=Math.max(a.gods||0,b.gods||0);
-  r.giftGrandmont=a.giftGrandmont||b.giftGrandmont; r.coinsInit=a.coinsInit||b.coinsInit; r.giftOcrafix=a.giftOcrafix||b.giftOcrafix;
-  r.coins=Math.max(a.coins||0,b.coins||0); r.tx=((a.tx||[]).length>=(b.tx||[]).length?a.tx:b.tx)||[];
-  r.settled=Object.assign({},b.settled||{},a.settled||{}); r.escrow=Object.assign({},b.escrow||{},a.escrow||{}); r.shop=Object.assign({},b.shop||{},a.shop||{}); return r;
-}
-async function linkLocal(pseudo){
+  const aEmpty=!a||!a.coll||(!a.ts&&!Object.keys(a.coll).length&&!(a.opened));
+  if(aEmpty) return Object.assign(blank(),JSON.parse(JSON.stringify(b)));
+  const newer=(b.ts||0)>(a.ts||0)?b:a, older=newer===a?b:a;
+  const r=Object.assign(blank(),JSON.parse(JSON.stringify(newer)));
+  ONCE.forEach(k=>{if(older[k])r[k]=older[k];});
+  if(older.starterPick) delete r.needStarter;
+  r.achR=Object.assign({},older.achR||{}); for(const k in (newer.achR||{})) r.achR[k]=Math.max(r.achR[k]||0,newer.achR[k]);
+  r.achC=Object.assign({},older.achC||{}); for(const k in (newer.achC||{})) r.achC[k]=Math.max(r.achC[k]||0,newer.achC[k]);
+  for(const k in r.achC) if((r.achR[k]||0)<r.achC[k]) r.achR[k]=r.achC[k];
+  const dl=x=>x&&x.last?new Date(x.last.replace(/-(\d)(?!\d)/g,'-0$1')).getTime()||0:0;
+  if(dl(older.daily)>dl(newer.daily)) r.daily=older.daily;
+  r.serial=Object.assign({},older.serial||{},newer.serial||{});
+  r.got=Object.assign({},older.got||{},newer.got||{});
+  ['shop','settled','tset'].forEach(k=>{r[k]=Object.assign({},older[k]||{},newer[k]||{});});
+  return r;
+}async function linkLocal(pseudo){
   const id='u_'+String(NET.uid).replace(/[^A-Za-z0-9]/g,'').slice(0,40);
   let acc=ACC.list.find(a=>a.id===id); const prev=ACC.current;
   if(!acc){ acc={id,pseudo,created:Date.now(),online:true}; ACC.list.push(acc);
@@ -1593,7 +1603,20 @@ async function linkLocal(pseudo){
   if(!S.serialBF){S.serialBF=1;Object.keys(S.coll).forEach(queueSerial);}
   save(); queueSync(true);
   hideGate(); render();
+  watchOwnSave();
   checkGifts();
+}
+/* Si le même compte joue sur un autre appareil, on récupère ses changements en direct :
+   impossible de toucher deux fois la même récompense. */
+let ownSaveWatched=false;
+function watchOwnSave(){
+  if(ownSaveWatched||!NET.linked) return; ownSaveWatched=true;
+  NET.db.doc('data/users/'+NET.uid+'/save').onSnapshot(sn=>{
+    if(!sn.exists) return; const d=sn.data(); if(!d||!d.coll) return;
+    if((d.ts||0)<=(S.ts||0)+200) return;
+    if(pack) return;                      /* pas pendant une ouverture : on fusionnera à la prochaine sauvegarde */
+    S=mergeSave(S,d); saveLocal(); renderBar(); if($('sheet').hidden) render();
+  },()=>{});
 }
 let syncT=null,syncing=false,syncAgain=false;
 function queueSync(now){ if(!NET.linked) return; clearTimeout(syncT); syncT=setTimeout(doSync,now?0:1500); }
@@ -2017,11 +2040,13 @@ function showAchPopup(){
   if(!matchMedia('(prefers-reduced-motion: reduce)').matches) setTimeout(()=>{const b=el.querySelector('.achburst');if(b)celebrate('l',b);},150);
 }
 function closeAch(){const el=$('achpop');if(el){el.hidden=true;el.innerHTML='';}}
-function claimAch(id){
+async function claimAch(id){
+  await pullRemote();
   const co=COLLBY[id]; if(!co) return; const p=pendingFor(co); if(!p) return;
   S.dip=(S.dip||0)+p; S.achC[id]=S.achR[id]; save(); sfx('coin'); toast(`+🎓 ${fmt(p)} pour « ${co.name} »`); pulseDip(); renderBar(); refreshAch();
 }
-function claimAll(){
+async function claimAll(){
+  await pullRemote();
   let t=0; for(const co of COLLS){const p=pendingFor(co); if(p){t+=p;S.achC[co.id]=S.achR[co.id];}}
   if(!t) return toast('Rien à récupérer pour le moment.');
   S.dip=(S.dip||0)+t; save(); sfx('coin'); toast(`+🎓 ${fmt(t)} récupérés !`); pulseDip(); renderBar(); refreshAch();
@@ -2478,7 +2503,9 @@ function showDaily(){
     actions:`<button class="btn" data-act="dailyclaim">Récupérer 🎓 ${st.reward}</button>`});
   return true;
 }
-function claimDaily(){
+async function pullRemote(){if(!NET.linked) return; try{const r=await NET.db.doc('data/users/'+NET.uid+'/save').get(); if(r.exists&&(r.data().ts||0)>(S.ts||0)){S=mergeSave(S,r.data());saveLocal();}}catch(e){}}
+async function claimDaily(){
+  await pullRemote();
   const st=dailyState(); if(!st) return closeNotice();
   S.daily={last:dayKey(),streak:st.streak}; S.dip=(S.dip||0)+st.reward; save(); sfx('coin'); pulseDip(); renderBar();
   toast(`+🎓 ${st.reward} : jour ${st.streak} de ta série`); closeNotice(); if(view==='boosters') carouselUpdate();
