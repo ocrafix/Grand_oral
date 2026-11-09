@@ -10,6 +10,7 @@ service cloud.firestore {
       allow read: if true;
       allow write: if signedIn() && me() == uid && request.resource.data.pseudo is string
                    && request.resource.data.pseudo.size() >= 3 && request.resource.data.pseudo.size() <= 20;
+      allow delete: if signedIn() && me() == uid;
     }
     // Sauvegarde privée de l'album : uniquement son propriétaire.
     match /data/users/{uid}/{doc} {
@@ -67,6 +68,12 @@ service cloud.firestore {
                     && request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to
                     && request.resource.data.give == resource.data.give && request.resource.data.want == resource.data.want;
       allow delete: if signedIn() && resource.data.from == me();
+    }
+    // Avis des joueurs (problèmes et suggestions) : chacun peut écrire, seul toi les lis dans la console Firebase.
+    match /feedback/{id} {
+      allow create: if signedIn() && request.resource.data.uid == me()
+                    && request.resource.data.text is string && request.resource.data.text.size() <= 2000;
+      allow read, update, delete: if false;
     }
     // Verrous courts utilisés pour éviter les doubles achats et les pseudos en double.
     match /leases/{id} {

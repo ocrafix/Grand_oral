@@ -950,6 +950,18 @@ html,body{overflow-x:hidden}
 /* Version 9 : pochettes gratuites */
 .bb-buy.free{background:linear-gradient(135deg,#7FE3A8,#2E9E62 55%,#9BEFC0);border-color:#1C7A4C;color:#0B2A1A}
 .bb-buy.free b{font-size:17px}
+
+/* Version 10 */
+.newslist{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;text-align:left}
+.newslist li{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid #DDCBA2;border-radius:12px;padding:8px 10px}
+.newslist li span{font-size:20px;line-height:1.2;flex:none}
+.newslist li p{margin:0;font-size:13.5px;color:#14204A}
+.fbform{display:flex;flex-direction:column;gap:12px;max-width:620px}
+.field.area{align-items:flex-start;padding:10px 12px}
+.field textarea{border:0;background:transparent;outline:0;resize:vertical;min-height:120px;width:100%;color:var(--ink);font:inherit}
+.pwform{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.pwform .btn{width:100%}
+@media (max-width:420px){.botnav button{font-size:9.5px;padding:6px 0}.botnav svg{width:20px;height:20px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -964,15 +976,19 @@ html,body{overflow-x:hidden}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>
-/* ===== Connexion à Firebase : comptes anonymes et base de données partagée entre tous les joueurs ===== */
+/* ===== Connexion à Firebase : comptes (anonymes ou pseudo + mot de passe) et base partagée entre tous les joueurs ===== */
 (function(){
   const cfg=window.FIREBASE_CONFIG;
   if(!window.firebase||!cfg||!cfg.apiKey||/REMPLIR/.test(cfg.apiKey)) return;   // pas configuré : le jeu reste en mode local
   firebase.initializeApp(cfg);
   const fs=firebase.firestore(), auth=firebase.auth();
+  /* On ne crée un compte anonyme que si personne n’est déjà connecté (sinon on écraserait une connexion par mot de passe) */
   const ready=new Promise(res=>{
-    auth.onAuthStateChanged(u=>{ if(u) res(u); });
-    auth.signInAnonymously().catch(e=>{ console.error('Connexion Firebase impossible',e); res(null); });
+    let asked=false;
+    auth.onAuthStateChanged(u=>{
+      if(u){res(u);return;}
+      if(!asked){asked=true;auth.signInAnonymously().catch(e=>{console.error('Connexion Firebase impossible',e);res(null);});}
+    });
   });
   const wrapDoc=s=>({id:s.id,exists:s.exists,data:()=>s.data()});
   const wrapQuery=q=>({docs:q.docs.map(wrapDoc),size:q.size,empty:q.empty});
@@ -997,6 +1013,15 @@ html,body{overflow-x:hidden}
   const db={doc:docRef,collection:colRef,mint};
   const user={id:async()=>{const u=await ready;return u?u.uid:null;},can:async()=>true,isOwner:async()=>false,me:async()=>null};
   window.claude={use:async n=>{const u=await ready;if(!u)return null;return n==='db'?db:n==='user'?user:null;}};
+  /* Identifiant de connexion : le pseudo, transformé en adresse technique (aucun e-mail n’est envoyé) */
+  const mail=p=>String(p||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ').replace(/[^a-z0-9._-]/g,'_')+'@joueurs.majordepromo.fr';
+  window.MDP_AUTH={
+    hasPassword:()=>{const u=auth.currentUser;return !!(u&&!u.isAnonymous);},
+    async createPassword(pseudo,pass){const cred=firebase.auth.EmailAuthProvider.credential(mail(pseudo),pass);await auth.currentUser.linkWithCredential(cred);},
+    async login(pseudo,pass){await auth.signInWithEmailAndPassword(mail(pseudo),pass);},
+    async logout(){await auth.signOut();},
+    async deleteUser(){const u=auth.currentUser;if(u)await u.delete();}
+  };
 })();
 </script>
 <script>
@@ -1081,6 +1106,7 @@ const ICON={
   trophy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 6h3v2a4 4 0 0 1-4 4M7 6H4v2a4 4 0 0 0 4 4"/></svg>',
   store:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9l1.5-5h13L20 9"/><path d="M4 9h16v2a3 3 0 0 1-5.3 1.9A3 3 0 0 1 12 14a3 3 0 0 1-2.7-1.1A3 3 0 0 1 4 11z"/><path d="M5 13v7h14v-7M10 20v-4h4v4"/></svg>',
   medal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="15" r="6"/><path d="M8.5 10.5 6 3h4l2 5 2-5h4l-2.5 7.5"/><path d="m12 12.5 1 2 2 .3-1.5 1.4.4 2-1.9-1-1.9 1 .4-2L9 14.8l2-.3z"/></svg>',
+  chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.4A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>',
   heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-8.6C1.3 8.4 3 5 6.4 5c2 0 3.3 1.1 4.1 2.3h3C14.3 6.1 15.6 5 17.6 5 21 5 22.7 8.4 21.2 11.4 19 15.6 12 20 12 20z"/></svg>',
   sort:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>',
   cap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/></svg>'
@@ -1189,7 +1215,7 @@ function slotHTML(c){
 
 /* ===== Barres ===== */
 const MEDAL='<svg viewBox=\"0 0 100 100\" aria-hidden=\"true\"><circle cx=\"50\" cy=\"50\" r=\"46\" fill=\"#0B1233\" stroke=\"#F3D27A\" stroke-width=\"6\"/><ellipse cx=\"36.9\" cy=\"80.1\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(140 36.9 80.1)\" fill=\"#E1B54E\"/><ellipse cx=\"28.5\" cy=\"74.3\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(159 28.5 74.3)\" fill=\"#E1B54E\"/><ellipse cx=\"22.4\" cy=\"66.1\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(178 22.4 66.1)\" fill=\"#E1B54E\"/><ellipse cx=\"19.3\" cy=\"56.3\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(197 19.3 56.3)\" fill=\"#E1B54E\"/><ellipse cx=\"19.6\" cy=\"46.1\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(216 19.6 46.1)\" fill=\"#E1B54E\"/><ellipse cx=\"23.2\" cy=\"36.5\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(235 23.2 36.5)\" fill=\"#E1B54E\"/><ellipse cx=\"29.7\" cy=\"28.6\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(254 29.7 28.6)\" fill=\"#E1B54E\"/><ellipse cx=\"63.1\" cy=\"80.1\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(40 63.1 80.1)\" fill=\"#E1B54E\"/><ellipse cx=\"71.5\" cy=\"74.3\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(21 71.5 74.3)\" fill=\"#E1B54E\"/><ellipse cx=\"77.6\" cy=\"66.1\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(2 77.6 66.1)\" fill=\"#E1B54E\"/><ellipse cx=\"80.7\" cy=\"56.3\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(-17 80.7 56.3)\" fill=\"#E1B54E\"/><ellipse cx=\"80.4\" cy=\"46.1\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(-36 80.4 46.1)\" fill=\"#E1B54E\"/><ellipse cx=\"76.8\" cy=\"36.5\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(-55 76.8 36.5)\" fill=\"#E1B54E\"/><ellipse cx=\"70.3\" cy=\"28.6\" rx=\"2.4\" ry=\"5.6\" transform=\"rotate(-74 70.3 28.6)\" fill=\"#E1B54E\"/><path d=\"M28 44 50 34 72 44 50 54Z\" fill=\"#F3D27A\"/><path d=\"M36 48v10c8 6 20 6 28 0V48L50 55Z\" fill=\"#E1B54E\"/><path d=\"M70 45v12\" stroke=\"#F3D27A\" stroke-width=\"2.5\" stroke-linecap=\"round\"/><circle cx=\"70\" cy=\"58.5\" r=\"2.2\" fill=\"#F3D27A\"/><path d=\"M50 66l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4-3.9-3.8 5.4-.8z\" fill=\"#FFE27A\"/></svg>';
-const VIEWS=[['boosters','Boosters','pack'],['album','Album','album'],['wish','Souhaits','heart'],['ach','Succès','medal'],['market','Marché','store'],['rank','Social','trophy']];
+const VIEWS=[['boosters','Boosters','pack'],['album','Album','album'],['wish','Souhaits','heart'],['ach','Succès','medal'],['market','Marché','store'],['rank','Social','trophy'],['avis','Avis','chat']];
 function renderBar(){
   const o=owned(),t=CARDS.length,p=o/t,C2=2*Math.PI*12;
   $('bar').innerHTML=`<div class="brand"><span class="mark">${MEDAL}</span><span><b>Major de promo</b><small>L’album des écoles sup de France</small></span></div>
@@ -1292,7 +1318,7 @@ function wishView(){
 /* ===== Rendu ===== */
 function render(){
   renderBar();
-  $('app').innerHTML=view==='boosters'?boostersView():view==='wish'?wishView():view==='rank'?rankView():view==='market'?marketView():view==='ach'?achView():albumView();
+  $('app').innerHTML=view==='boosters'?boostersView():view==='wish'?wishView():view==='rank'?rankView():view==='market'?marketView():view==='ach'?achView():view==='avis'?feedbackView():albumView();
   if(view==='boosters'){packIdx=S.lastPack!=null&&packIdx===0?S.lastPack:packIdx;carouselUpdate();}
   updateDipTimer();
 }
@@ -1467,6 +1493,7 @@ function checkGifts(){
   if(S.needStarter&&!S.starterPick) return void setTimeout(()=>{if(!pack)startStarter();},500);
   if(noticeOpen()) return;
   if(oneTimeNotices()) return;
+  if(showNews()) return;
   if(showDaily()) return;
   checkAchievements(); showAchPopup();
 }
@@ -1539,7 +1566,7 @@ async function initNet(){
 }
 async function onlineStart(){
   let snap; try{ snap=await NET.db.doc('players/'+NET.uid).get(); }catch(e){ return; }
-  NET.on=true; subscribeNet();
+  NET.on=true; subscribeNet(); setTimeout(flushFeedback,3000);
   if(snap.exists&&snap.data().pseudo){ await linkLocal(snap.data().pseudo); }
   else if(NET.canWrite){ hideGate(); showGate(false,true); }
   renderBar(); if(view==='rank') render();
@@ -1593,17 +1620,23 @@ async function claimPseudo(p){
 }
 async function createOnline(v){
   const msg=$('pseudomsg'), [p,err]=checkPseudo(v,null,true); if(!p){msg.textContent=err;return;}
+  if(AUTH()&&$('gpass')){const pe=passCheck($('gpass').value,$('gpass2').value);if(pe){msg.textContent=pe;return;}}
   const btn=document.querySelector('#gateform .btn'); if(btn){btn.disabled=true;btn.textContent='Vérification…';}
   const r=await claimPseudo(p);
   if(btn){btn.disabled=false;btn.textContent='Valider mon pseudo';}
   if(r==='taken'){msg.textContent='Ce pseudo est déjà pris par un autre joueur. Choisis-en un autre.';return;}
   if(r==='readonly'){msg.textContent='Ton accès à cette page est en lecture seule : demande à la personne qui t’a envoyé le lien un accès qui permet de participer.';setTimeout(()=>{hideGate();if(!ACC.current)showGate();else render();},3500);return;}
   if(r!=='ok'){msg.textContent='Impossible de vérifier ce pseudo pour le moment. Réessaie dans un instant.';return;}
+  const pass=AUTH()&&$('gpass')?$('gpass').value:'';
   try{ await NET.db.doc('players/'+NET.uid).set({pseudo:p,key:pkey(p),packs:S.opened||0,cards:owned(),updated:Date.now()}); }catch(e){}
-  await linkLocal(p); if(!S.starterPick&&!Object.keys(S.coll).length){S.needStarter=1;save();checkGifts();} toast('Bienvenue, '+p+' !');
+  await linkLocal(p); if(!S.starterPick&&!Object.keys(S.coll).length){S.needStarter=1;save();checkGifts();}
+  lsSet('mdp-vu',APP_VERSION);
+  if(pass){try{await AUTH().createPassword(p,pass);}catch(e){toast(authMsg(e));}}
+  toast('Bienvenue, '+p+' !');
 }
 async function renameOnline(v){
   const m=$('newpseudomsg'), a=me(), [p,err]=checkPseudo(v,null,true); if(!p){m.textContent=err;return;}
+  if(AUTH()&&AUTH().hasPassword()&&pkey(p)!==pkey(a.pseudo)){m.textContent='Ton pseudo sert d’identifiant de connexion : il ne peut plus être changé.';return;}
   if(pkey(p)===pkey(a.pseudo)){ a.pseudo=p; saveAcc(); queueSync(true); renderBar(); openAccount(); return; }
   const r=await claimPseudo(p);
   if(r==='taken'){m.textContent='Ce pseudo est déjà pris par un autre joueur.';return;}
@@ -1921,10 +1954,12 @@ function updateDipTimer(){const full=freeN()>=FREE_MAX,ms=dipLeft(),m=Math.floor
   document.querySelectorAll('.diptimer').forEach(el=>{el.textContent=t;});document.querySelectorAll('.freecount').forEach(el=>{el.textContent=freeN();});}
 function pulseDip(){const el=document.querySelector('.dipchip');if(el){el.classList.remove('pulse');void el.offsetWidth;el.classList.add('pulse');}}
 let lastTick=0;
-function tickAll(){lastTick=Date.now();try{dipTick();updateDipTimer();}catch(e){}}
-/* Boucle relancée à chaque seconde + relance au retour dans l’application (iOS met les minuteurs en pause) */
+function tickAll(){lastTick=Date.now();try{updateDipTimer();}catch(e){logErr('chrono affichage : '+e.message);}try{dipTick();}catch(e){logErr('chrono : '+e.message);}try{updateDipTimer();}catch(e){}}
+/* Plusieurs mécanismes en parallèle : iOS (application d’écran d’accueil) peut suspendre l’un ou l’autre */
 (function loop(){tickAll();setTimeout(loop,1000-(Date.now()%1000)+20);})();
-['visibilitychange','pageshow','focus','touchstart','pointerdown'].forEach(ev=>window.addEventListener(ev,()=>{if(document.visibilityState!=='hidden'&&Date.now()-lastTick>900)tickAll();},{passive:true}));
+setInterval(()=>{if(Date.now()-lastTick>900)tickAll();},1000);
+(function raf(){if(document.visibilityState!=='hidden'&&Date.now()-lastTick>1000)tickAll();requestAnimationFrame(raf);})();
+['visibilitychange','pageshow','focus','resume','touchstart','touchend','pointerdown','scroll'].forEach(ev=>(ev==='resume'||ev==='visibilitychange'?document:window).addEventListener(ev,()=>{if(document.visibilityState!=='hidden'&&Date.now()-lastTick>700)tickAll();},{passive:true}));
 function canPay(cur,amount){return cur==='dip'?(DIP_INFINITE||(S.dip||0)>=amount):(S.coins||0)>=amount;}
 function pay(cur,amount,label){if(cur==='dip'){if(!DIP_INFINITE)S.dip=(S.dip||0)-amount;}else addTx(-amount,label);}
 
@@ -2541,6 +2576,126 @@ function gotHTML(c){
   return `<dt>Obtenue le</dt><dd>${t?new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+' à '+new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'<span class="muted">avant le suivi des dates</span>'}</dd>`;
 }
 
+/* ===================== Version 10 : mots de passe, nouveautés, avis, compte ===================== */
+const APP_VERSION='2026-11-09';
+const NEWS=[
+ ['🔐','Connexion avec pseudo et mot de passe : retrouve ton compte sur tous tes appareils (site Major de promo).'],
+ ['🎁','Le chrono offre 1 pochette gratuite toutes les 10 minutes, jusqu’à 10 en stock.'],
+ ['#️⃣','Ton numéro d’exemplaire est imprimé sur chaque carte, et visible dans les vitrines.'],
+ ['📖','Nouveau catalogue avec toutes les cartes du jeu, dans l’onglet Album.'],
+ ['♥','Tes souhaits s’affichent sous ta vitrine.'],
+ ['💬','Nouvel onglet Avis pour signaler un problème ou proposer une idée.'],
+ ['🚪','Déconnexion et suppression de compte depuis ta fiche de compte.'],
+ ['📱','Chrono corrigé pour l’application installée sur iPhone.']
+];
+const lsGet=k=>{try{return localStorage.getItem(k);}catch(e){return null;}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}};
+function showNews(){
+  if(lsGet('mdp-vu')===APP_VERSION) return false;
+  lsSet('mdp-vu',APP_VERSION);
+  if(!S.opened&&Object.keys(S.coll).length<=1) return false; /* nouveau joueur : rien à annoncer */
+  showNotice({emoji:'✨',title:'Quoi de neuf ?',sound:'ach',
+    html:`<ul class="newslist">${NEWS.map(([e,t])=>`<li><span>${e}</span><p>${esc(t)}</p></li>`).join('')}</ul>`,
+    actions:'<button class="btn" data-act="noticeok">C’est parti !</button>'});
+  return true;
+}
+/* --- Journal des erreurs (joint aux signalements pour aider à corriger) --- */
+const ERRLOG=[];
+function logErr(m){ERRLOG.push(new Date().toISOString().slice(11,19)+' '+String(m).slice(0,200));if(ERRLOG.length>12)ERRLOG.shift();}
+window.addEventListener('error',e=>logErr((e.message||'erreur')+' @'+(e.lineno||'?')));
+window.addEventListener('unhandledrejection',e=>logErr('promesse : '+((e.reason&&e.reason.message)||e.reason)));
+const isStandalone=()=>!!(window.navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches));
+function deviceInfo(){
+  return {ua:navigator.userAgent,screen:`${screen.width}x${screen.height} @${window.devicePixelRatio||1}x`,viewport:`${innerWidth}x${innerHeight}`,
+    standalone:isStandalone(),version:APP_VERSION,online:!!NET.on,linked:!!NET.linked,fp:S.fp,fpT:S.fpT?new Date(S.fpT).toISOString():null,errors:ERRLOG.slice(-8)};
+}
+/* --- Mots de passe (site Major de promo avec Firebase) --- */
+const AUTH=()=>window.MDP_AUTH||null;
+function authMsg(e){
+  const c=(e&&e.code)||'';
+  if(/wrong-password|invalid-credential|invalid-login|user-not-found|invalid-email/.test(c)) return 'Pseudo ou mot de passe incorrect.';
+  if(/weak-password/.test(c)) return 'Mot de passe trop faible : 6 caractères minimum.';
+  if(/email-already-in-use|credential-already-in-use|provider-already-linked/.test(c)) return 'Un mot de passe existe déjà pour ce pseudo.';
+  if(/operation-not-allowed/.test(c)) return 'La connexion par mot de passe n’est pas encore activée sur le serveur du jeu.';
+  if(/too-many-requests/.test(c)) return 'Trop d’essais. Patiente quelques minutes.';
+  if(/network/.test(c)) return 'Pas de connexion internet.';
+  if(/requires-recent-login/.test(c)) return 'Pour cette action, reconnecte-toi d’abord.';
+  return 'Action impossible pour le moment.';
+}
+function passCheck(p1,p2){if(!p1||p1.length<6)return 'Ton mot de passe doit faire au moins 6 caractères.';if(p1!==p2)return 'Les deux mots de passe ne sont pas identiques.';return '';}
+async function doLogin(){
+  const m=$('loginmsg'), u=($('lpseudo').value||'').trim(), pw=$('lpass').value||'';
+  if(!u||!pw){m.textContent='Indique ton pseudo et ton mot de passe.';return;}
+  const btn=document.querySelector('#loginform .btn'); if(btn){btn.disabled=true;btn.textContent='Connexion…';}
+  try{await AUTH().login(u,pw);ACC.current=null;saveAcc();m.textContent='';toast('Connexion réussie !');setTimeout(()=>location.reload(),400);}
+  catch(e){m.textContent=authMsg(e);if(btn){btn.disabled=false;btn.textContent='Me connecter';}}
+}
+async function addPassword(){
+  const m=$('pwmsg'), p1=$('pw1').value, p2=$('pw2').value, er=passCheck(p1,p2); if(er){m.textContent=er;return;}
+  try{await AUTH().createPassword(me().pseudo,p1);toast('🔐 Mot de passe créé ! Tu peux te connecter sur un autre appareil.');sfx('coin');openAccount();}
+  catch(e){m.textContent=authMsg(e);}
+}
+function securityHTML(){
+  if(!AUTH()) return `<div class="acct-block"><h3>Compte</h3><p class="muted small">Ici, ton compte est lié à ton compte claude.ai : tu le retrouves automatiquement sur tous tes appareils.</p>
+    <div class="sheet-actions" style="margin-top:6px"><button class="btn sec" data-act="delonline">Supprimer mon compte</button></div></div>`;
+  if(AUTH().hasPassword()) return `<div class="acct-block"><h3>🔐 Connexion</h3><p class="muted small">Ton compte est protégé par un mot de passe. Pour te connecter sur un autre appareil : ton pseudo <b>${esc(me().pseudo)}</b> et ton mot de passe.</p>
+    <div class="sheet-actions" style="margin-top:6px"><button class="btn sec" data-act="logoutonline">Se déconnecter</button><button class="btn sec" data-act="delonline">Supprimer mon compte</button></div></div>`;
+  return `<div class="acct-block"><h3>🔐 Créer un mot de passe</h3><p class="muted small">Sans mot de passe, ton compte n’existe que sur cet appareil. Crée-en un pour te connecter partout avec ton pseudo.</p>
+    <form id="pwform" class="pwform" novalidate><label class="field"><span class="sr">Mot de passe</span><input id="pw1" type="password" autocomplete="new-password" placeholder="Mot de passe (6 caractères minimum)"></label>
+    <label class="field"><span class="sr">Confirmation</span><input id="pw2" type="password" autocomplete="new-password" placeholder="Confirme ton mot de passe"></label>
+    <p class="gate-msg" id="pwmsg" aria-live="polite"></p><button class="btn" type="submit">Créer mon mot de passe</button></form>
+    <div class="sheet-actions" style="margin-top:6px"><button class="btn sec" data-act="logoutonline">Se déconnecter</button><button class="btn sec" data-act="delonline">Supprimer mon compte</button></div></div>`;
+}
+async function logoutOnline(b){
+  if(AUTH()&&!AUTH().hasPassword()&&b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Sans mot de passe, tu perdras ce compte. Confirmer ?';b.classList.add('danger');return;}
+  ACC.current=null; saveAcc(); try{await AUTH().logout();}catch(e){} location.reload();
+}
+async function deleteOnline(b){
+  if(b.dataset.armed!=='1'){b.dataset.armed='1';b.textContent='Confirmer : tout supprimer définitivement';b.classList.add('danger');return;}
+  b.disabled=true; b.textContent='Suppression…';
+  const uid=NET.uid, a=me(), db=NET.db;
+  const del=async path=>{try{await db.doc(path).delete();}catch(e){}};
+  if(db&&uid){
+    try{const o=await db.doc('pseudos/'+pkey(a.pseudo)).get();if(o.exists&&o.data().uid===uid)await del('pseudos/'+pkey(a.pseudo));}catch(e){}
+    await del('players/'+uid); await del('data/users/'+uid+'/save'); await del('collections/'+uid);
+  }
+  NET.linked=false;
+  const id=ACC.current; try{localStorage.removeItem(dataKey(id));}catch(e){}
+  ACC.list=ACC.list.filter(x=>x.id!==id); ACC.current=null; saveAcc();
+  if(AUTH()){try{await AUTH().deleteUser();}catch(e){try{await AUTH().logout();}catch(_){}}}
+  toast('Compte supprimé'); setTimeout(()=>location.reload(),500);
+}
+/* --- Onglet Avis : signaler un problème ou proposer une idée --- */
+let fbType='bug';
+function feedbackView(){
+  const sent=(S.fbSent||[]).slice(-5).reverse();
+  const seg=(v,l)=>`<button class="segb" data-act="fbtype" data-v="${v}" aria-pressed="${fbType===v}">${l}</button>`;
+  return `<h1 class="pt">Ton avis</h1><p class="lead">Un bug, une idée, une remarque ? Écris-nous, on lit tout.</p>
+    <form id="fbform" class="fbform" novalidate>
+      <div class="seg" role="group" aria-label="Type de message">${seg('bug','🐞 Problème')}${seg('idee','💡 Suggestion')}${seg('autre','💬 Autre')}</div>
+      <label class="field area"><span class="sr">Ton message</span><textarea id="fbtext" maxlength="2000" rows="6" placeholder="${fbType==='bug'?'Que s’est-il passé ? Sur quel écran ? Sur quel appareil ?':fbType==='idee'?'Quelle idée aimerais-tu voir dans le jeu ?':'Ton message'}"></textarea></label>
+      <label class="toggle"><input type="checkbox" id="fbdev" checked>Joindre les infos de mon appareil (aide à corriger les bugs)</label>
+      <p class="gate-msg" id="fbmsg" aria-live="polite"></p>
+      <button class="btn" type="submit">Envoyer</button></form>
+    ${sent.length?`<h2 class="sectitle">Mes derniers envois</h2><ul class="txlist">${sent.map(x=>`<li><span>${x.type==='bug'?'🐞':x.type==='idee'?'💡':'💬'} ${esc(x.text.slice(0,80))}${x.text.length>80?'…':''}<small>${new Date(x.at).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small></span><b class="${x.ok?'pos':''}">${x.ok?'Envoyé ✓':'En attente'}</b></li>`).join('')}</ul>`:''}`;
+}
+async function sendFeedback(){
+  const m=$('fbmsg'), text=($('fbtext').value||'').trim();
+  if(text.length<5){m.textContent='Écris un message un peu plus détaillé.';return;}
+  const entry={type:fbType,text,at:Date.now(),ok:false}, doc={uid:NET.uid||null,pseudo:me()?me().pseudo:null,type:fbType,text,at:Date.now(),version:APP_VERSION,status:'new'};
+  if($('fbdev').checked) doc.device=JSON.parse(JSON.stringify(deviceInfo()));
+  S.fbSent=S.fbSent||[]; S.fbSent.push(entry);
+  if(NET.on&&NET.db&&NET.uid){try{await NET.db.collection('feedback').doc().set(doc);entry.ok=true;}catch(e){logErr('avis : '+((e&&e.code)||e));}}
+  else { S.fbQueue=S.fbQueue||[]; S.fbQueue.push(doc); }
+  if(S.fbSent.length>20) S.fbSent=S.fbSent.slice(-20);
+  save(); sfx('coin'); toast(entry.ok?'Merci ! Ton message a bien été envoyé.':'Merci ! Ton message sera envoyé dès que le mode en ligne sera disponible.'); render();
+}
+async function flushFeedback(){
+  if(!NET.on||!NET.db||!NET.uid||!(S.fbQueue||[]).length) return;
+  const q=S.fbQueue.splice(0); for(const d of q){d.uid=NET.uid;try{await NET.db.collection('feedback').doc().set(d);}catch(e){S.fbQueue.push(d);}}
+  (S.fbSent||[]).forEach(x=>x.ok=true); save();
+}
+
 /* ===== Comptes ===== */
 const initials=p=>{const w=p.trim().split(/[\s_.\-]+/).filter(Boolean);return ((w[0]||'?')[0]+(w[1]?w[1][0]:(w[0]||'')[1]||'')).toUpperCase();};
 const avColor=p=>`hsl(${hashStr(norm(p))%360} 55% 42%)`;
@@ -2565,10 +2720,16 @@ function showGate(adding,online){
       <h2>${online?'Choisis ton pseudo de joueur':adding?'Créer un autre compte':'Crée ton compte de collectionneur'}</h2>
       <p>${online?'Ton pseudo est unique parmi tous les joueurs. Il apparaît dans le classement, et tes amis l’utilisent pour t’ajouter.':'Choisis un pseudonyme. Ton album, tes favoris et tes souhaits seront rattachés à ce compte.'}</p>
       <label class="field"><span class="sr">Pseudonyme</span><input id="pseudo" maxlength="20" autocomplete="nickname" placeholder="Ton pseudonyme" value="${online&&me()?esc(me().pseudo):''}" required></label>
+      ${online&&AUTH()?`<label class="field"><span class="sr">Mot de passe</span><input id="gpass" type="password" autocomplete="new-password" placeholder="Mot de passe (6 caractères minimum)"></label>
+      <label class="field" style="margin-top:8px"><span class="sr">Confirmation</span><input id="gpass2" type="password" autocomplete="new-password" placeholder="Confirme ton mot de passe"></label>`:''}
       <p class="gate-msg" id="pseudomsg" aria-live="polite"></p>
-      <button class="btn" type="submit">${online?'Valider mon pseudo':'Créer mon compte'}</button>
+      <button class="btn" type="submit">${online?(AUTH()?'Créer mon compte':'Valider mon pseudo'):'Créer mon compte'}</button>
       <p class="gate-note">${online?'Ton album est sauvegardé en ligne et te suit sur tous tes appareils.':'Ton compte est enregistré sur cet appareil et dans ce navigateur.'}</p>
     </form>
+    ${online&&AUTH()?`<form id="loginform" class="gate-card" novalidate><h2>Déjà un compte ?</h2><p>Connecte-toi avec ton pseudo et ton mot de passe pour retrouver ta collection.</p>
+      <label class="field"><span class="sr">Pseudo</span><input id="lpseudo" maxlength="20" autocomplete="username" placeholder="Ton pseudo"></label>
+      <label class="field" style="margin-top:8px"><span class="sr">Mot de passe</span><input id="lpass" type="password" autocomplete="current-password" placeholder="Ton mot de passe"></label>
+      <p class="gate-msg" id="loginmsg" aria-live="polite"></p><button class="btn" type="submit">Me connecter</button></form>`:''}
     ${!online&&others.length?`<div class="gate-card"><h2>Reprendre un compte</h2><div class="acctlist">${others.map(a=>{const d=readData(a.id)||blank();const n=Object.keys(d.coll).length;
       return `<button class="acctrow" data-act="switch" data-id="${a.id}">${avatarHTML(a.pseudo,a.av)}<span><b>${esc(a.pseudo)}</b><small>${fmt(n)} école${n>1?'s':''}</small></span></button>`;}).join('')}</div></div>`:''}
   </div>`;
@@ -2613,7 +2774,7 @@ function openAccount(){
     <div class="acct-block"><h3>🏛️ Ma vitrine (${vitrine().length}/5)</h3>${vitrineHTML(vitrine(),true)}<p class="muted small">${NET.linked?'Visible par tous les joueurs. ':''}Ajoute une carte depuis sa fiche, avec le bouton « Ajouter à ma vitrine ».</p>
       <h3 style="margin-top:14px">♥ Mes souhaits (${fmt(Object.keys(S.wish).length)})</h3>${wishesHTML(wishTop(),Object.keys(S.wish).length,true)}</div>
     <form id="renameform" class="acct-block" novalidate><h3>Changer de pseudo</h3><div class="row"><label class="field"><span class="sr">Nouveau pseudonyme</span><input id="newpseudo" maxlength="20" value="${esc(a.pseudo)}" autocomplete="nickname"></label><button class="btn sec" type="submit">Enregistrer</button></div><p class="gate-msg" id="newpseudomsg" aria-live="polite"></p></form>
-    ${a.online?'<p class="acct-online">🌐 Compte en ligne : pseudo unique, album sauvegardé et visible dans le classement.</p>':''}
+    ${a.online?'<p class="acct-online">🌐 Compte en ligne : pseudo unique, album sauvegardé et visible dans le classement.</p>'+securityHTML():''}
     ${a.online?'':`<div class="acct-block"><h3>Comptes sur cet appareil</h3><div class="acctlist">${others.map(x=>`<button class="acctrow" data-act="switch" data-id="${x.id}">${avatarHTML(x.pseudo,x.av)}<span><b>${esc(x.pseudo)}</b><small>Passer sur ce compte</small></span></button>`).join('')}
       <button class="acctrow add" data-act="newacct"><span class="avatar plus">+</span><span><b>Créer un autre compte</b><small>Avec un nouvel album</small></span></button></div></div>
     <div class="sheet-actions"><button class="btn sec" data-act="logout">Se déconnecter</button><button class="btn sec" data-act="delacct">Supprimer ce compte</button></div>`}
@@ -2686,6 +2847,10 @@ document.addEventListener('click',e=>{
     case 'opengift': return openGift(b);
     case 'wingo': pack.step='summary'; return renderOv();
     case 'account': return openAccount();
+    case 'logoutonline': return logoutOnline(b);
+    case 'delonline': return deleteOnline(b);
+    case 'fbtype': fbType=d.v; return render();
+    case 'gatelogin': {const f=$('loginform');if(f){f.scrollIntoView({behavior:'smooth'});$('lpseudo').focus();}return;}
     case 'amode': albumMode=d.v; limit=96; render(); return;
     case 'conv': return convertCoins(+d.v,b);
     case 'noticeok': return closeNotice();
@@ -2739,7 +2904,7 @@ document.addEventListener('click',e=>{
     case 'more': limit+=96; $('grid').innerHTML=gridHTML(); return;
   }
 });
-document.addEventListener('submit',e=>{if(e.target.id==='gateform'){e.preventDefault();GATE_ONLINE?createOnline($('pseudo').value):createAccount($('pseudo').value);}if(e.target.id==='renameform'){e.preventDefault();(me()&&me().online)?renameOnline($('newpseudo').value):renameAccount($('newpseudo').value);}if(e.target.id==='friendform'){e.preventDefault();sendRequest($('friendinput').value);}if(e.target.id==='listform'){e.preventDefault();createListing(e.target.dataset.id,$('listprice').value);}});
+document.addEventListener('submit',e=>{if(e.target.id==='gateform'){e.preventDefault();GATE_ONLINE?createOnline($('pseudo').value):createAccount($('pseudo').value);}if(e.target.id==='renameform'){e.preventDefault();(me()&&me().online)?renameOnline($('newpseudo').value):renameAccount($('newpseudo').value);}if(e.target.id==='friendform'){e.preventDefault();sendRequest($('friendinput').value);}if(e.target.id==='loginform'){e.preventDefault();doLogin();}if(e.target.id==='pwform'){e.preventDefault();addPassword();}if(e.target.id==='fbform'){e.preventDefault();sendFeedback();}if(e.target.id==='listform'){e.preventDefault();createListing(e.target.dataset.id,$('listprice').value);}});
 document.addEventListener('input',e=>{if(e.target.id==='pseudo'||e.target.id==='newpseudo'||e.target.id==='friendinput'){if(e.target.id==='friendinput'){const fm=$('friendmsg');if(fm)fm.textContent='';}const m=$(e.target.id+'msg');if(m)m.textContent='';}if(e.target.id==='search'){query=e.target.value;limit=96;$('grid').innerHTML=gridHTML();}
   if(e.target.id==='wsearch'){wq=e.target.value;$('wres').innerHTML=wishResults();}
   if(e.target.id==='trq2'&&TR){TR.q2=e.target.value;clearTimeout(window.__trq2);window.__trq2=setTimeout(()=>{tradeRender();const i=$('trq2');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},300);}
@@ -2766,6 +2931,6 @@ if(!ACC.current){
   netP.then(ok=>{ if(ok) onlineStart(); });
 }
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{}));let rl=false;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(rl)return;rl=true;location.reload();});}</script>
 </body>
 </html>
