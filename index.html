@@ -116,7 +116,7 @@ h1.pt{font-size:24px;line-height:1.2;letter-spacing:-.02em;margin:4px 0 6px;font
 .tc-head{display:flex;justify-content:space-between;align-items:center;gap:2cqw;padding:2.8cqw 3.2cqw 2.4cqw;font-size:5.2cqw;font-weight:800}
 .tc-chip{color:#fff;background:var(--fc);padding:.9cqw 2.6cqw;border-radius:99px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tc-no{flex:none;color:var(--paper-muted);font-variant-numeric:tabular-nums}
-.tc-art{margin:0 3cqw;aspect-ratio:100/80;flex:none;border-radius:2.4cqw;overflow:hidden;position:relative;box-shadow:inset 0 0 0 .5cqw rgba(0,0,0,.12)}
+.tc-art{margin:0 3cqw;aspect-ratio:100/80;background:#C9D4DE;flex:none;border-radius:2.4cqw;overflow:hidden;position:relative;box-shadow:inset 0 0 0 .5cqw rgba(0,0,0,.12)}
 .tc-art svg{display:block;width:100%;height:100%}
 .tc-body{flex:1;min-height:0;padding:2.6cqw 3.8cqw 0;display:flex;flex-direction:column;gap:1.2cqw}
 .tc-name{font-weight:800;font-size:7.2cqw;line-height:1.13;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
@@ -1154,45 +1154,308 @@ const CATICONS={uni:['🎓','📚','🏛️','🔬'],rech:['🔬','🦉','📚',
   media:['📰','🎙️','💬','📣'],art:['🎨','✏️','🎭','🎵'],archi:['📐','🏛️','🏗️','🧱'],sante:['🩺','💊','❤️','🩹'],agro:['🌾','🌱','🐄','🍇'],spt:['⚽','🏅','🛎️','🧳'],aut:['🏫','📘','🧭','🗂️'],lyc:['📘','🎒','📝','🧮']};
 function iconFor(c,rand){const n=norm(c.n+' '+c.sig);for(const [rx,ic] of ICONS) if(rx.test(n)) return ic;const p=CATICONS[c.cat];return p[Math.floor(rand()*p.length)];}
 const ART_CACHE=new Map();
+/* ===================== Illustrations des cartes : ville + type d’école, toutes différentes ===================== */
+const SC={W:200,H:160,G:126};
+const R2=(n)=>Math.round(n*10)/10;
+function scR(rnd,a,b){return a+rnd()*(b-a);}
+function scPick(rnd,a){return a[Math.floor(rnd()*a.length)];}
+/* Repères par ville (silhouettes au loin) et décor par région */
+const CITY_KEYS=[
+ [/^paris|boulogne-billancourt|issy|levallois|neuilly|vincennes|montreuil|saint-denis|ivry|vitry|cachan|antony|sceaux|clichy|pantin|saint-ouen|kremlin/, 'paris'],
+ [/courbevoie|puteaux|nanterre|la defense/,'defense'],
+ [/^lyon|villeurbanne|ecully|bron|vaulx/,'lyon'],[/^marseille/,'marseille'],[/^toulouse|labege/,'toulouse'],
+ [/^bordeaux|talence|pessac|gradignan|merignac/,'bordeaux'],[/^lille|villeneuve-d.ascq|roubaix|tourcoing/,'lille'],
+ [/^nantes|saint-herblain/,'nantes'],[/^strasbourg|schiltigheim|illkirch/,'strasbourg'],[/^montpellier/,'montpellier'],
+ [/^rennes|bruz|cesson/,'rennes'],[/^tours|joue-les-tours|saint-cyr-sur-loire|fondettes|chambray/,'tours'],[/^nice|sophia|antibes|valbonne/,'nice'],
+ [/^grenoble|saint-martin-d.heres|echirolles/,'grenoble'],[/^reims/,'reims'],[/^rouen|mont-saint-aignan|saint-etienne-du-rouvray/,'rouen'],
+ [/^le havre/,'lehavre'],[/^la rochelle/,'larochelle'],[/^clermont-ferrand|aubiere/,'clermont'],[/^dijon/,'dijon'],[/^angers/,'angers'],
+ [/^caen|herouville/,'caen'],[/^avignon/,'avignon'],[/^brest/,'brest'],[/^amiens/,'amiens'],[/^metz/,'metz'],[/^nancy|vandoeuvre/,'nancy'],[/^orleans/,'orleans']
+];
+const REGION_STYLE=[
+ [/ile-de-france/,'idf'],[/auvergne-rhone-alpes/,'alpes'],[/provence|azur/,'sud'],[/occitanie/,'occitanie'],[/nouvelle-aquitaine/,'aquitaine'],
+ [/bretagne/,'bretagne'],[/normandie/,'normandie'],[/hauts-de-france/,'nord'],[/grand est/,'est'],[/bourgogne|franche-comte/,'bourgogne'],
+ [/centre-val de loire/,'loire'],[/pays de la loire/,'loire'],[/corse/,'corse'],[/guadeloupe|martinique|guyane|reunion|mayotte|polynesie|caledonie|wallis|saint-pierre|antilles/,'tropiques']
+];
+/* Pierres et enduits typiques */
+const STONE={paris:['#E6D8BC','#EDE3CE','#DCCDB0'],tours:['#F1ECDF','#EEE7D6'],loire:['#F1ECDF','#E9E1CF'],lille:['#B5553C','#A64A33','#C2654A'],nord:['#B5553C','#A64A33'],
+ toulouse:['#C9714F','#BF6646','#D58460'],occitanie:['#D99D7A','#E3B28F','#C9714F'],sud:['#EBCB9B','#F0D8B0','#E2B987'],nice:['#E9B98A','#F2D3A6','#E8A97C'],marseille:['#EBD7B6','#E5C9A0'],
+ strasbourg:['#E8D9C1','#D9A07F'],est:['#E2CDB0','#D6BE9C'],bretagne:['#B9B6AE','#A8A59D','#C9C6BE'],rennes:['#D9B48A','#C9C6BE'],normandie:['#EFE6D6','#E5DCCB'],rouen:['#EFE6D6'],
+ bordeaux:['#EADCC0','#E3D2B2'],aquitaine:['#EADCC0','#E5D8C2'],lyon:['#E9C9A3','#F0D6B5','#DDB68F'],alpes:['#E6DCCB','#D9CFBF'],grenoble:['#E6DCCB'],
+ bourgogne:['#E7D7BC','#DCC8A8'],dijon:['#E7D7BC'],clermont:['#5A5A5E','#6B6B70','#8A857C'],corse:['#D9CBB0','#CBB998'],tropiques:['#F4E7C9','#F7D9B5','#E6F0E6'],
+ defense:['#C9D4DE','#B8C6D4'],idf:['#E6D8BC','#E9E0CD'],def:['#E3D8C4','#D9CDB6']};
+const ROOF={paris:'#59626E',idf:'#59626E',tours:'#4E5866',loire:'#4E5866',bretagne:'#4A5260',lille:'#5C4033',nord:'#6B4A3A',toulouse:'#B35A3C',occitanie:'#B9643F',sud:'#C2704A',nice:'#C2704A',marseille:'#C2704A',
+ corse:'#B9643F',strasbourg:'#A65A3F',est:'#9C5A40',lyon:'#B9643F',dijon:'#8A5A3A',bourgogne:'#8A5A3A',tropiques:'#C2704A',def:'#59626E'};
+function scFar(key,rnd,col,flip){
+  /* silhouettes au loin, couleur atténuée */
+  const f=col, x0=flip?scR(rnd,14,60):scR(rnd,130,176), out=[];
+  const P=(pts)=>out.push(`<polygon points="${pts}" fill="${f}"/>`), Rc=(x,y,w,h)=>out.push(`<rect x="${R2(x)}" y="${R2(y)}" width="${R2(w)}" height="${R2(h)}" fill="${f}"/>`), C=(x,y,r)=>out.push(`<circle cx="${R2(x)}" cy="${R2(y)}" r="${R2(r)}" fill="${f}"/>`);
+  const G=SC.G-12;
+  switch(key){
+    case 'paris': P(`${x0},${G-74} ${x0+3},${G-74} ${x0+14},${G} ${x0-11},${G}`);Rc(x0-7,G-40,17,3);Rc(x0-10,G-18,23,3);Rc(x0+0.5,G-84,2,10);break;
+    case 'defense': for(let i=0;i<4;i++){const w=scR(rnd,10,16),h=scR(rnd,45,85);Rc(x0-30+i*15,G-h,w,h);}break;
+    case 'lyon': P(`${x0-40},${G} ${x0-20},${G-30} ${x0+20},${G-34} ${x0+44},${G}`);Rc(x0-12,G-52,26,20);Rc(x0-14,G-60,5,10);Rc(x0+11,G-60,5,10);Rc(x0-5,G-58,4,8);Rc(x0+3,G-58,4,8);break;
+    case 'marseille': P(`${x0-38},${G} ${x0-8},${G-44} ${x0+8},${G-44} ${x0+40},${G}`);Rc(x0-6,G-62,12,18);Rc(x0-2,G-80,4,18);C(x0,G-84,3);break;
+    case 'toulouse': Rc(x0-6,G-40,12,40);Rc(x0-4.5,G-52,9,12);Rc(x0-3,G-62,6,10);P(`${x0-2},${G-62} ${x0},${G-76} ${x0+2},${G-62}`);break;
+    case 'bordeaux': Rc(x0-44,G-24,88,24);P(`${x0-10},${G-24} ${x0},${G-34} ${x0+10},${G-24}`);break;
+    case 'lille': case 'amiens': Rc(x0-6,G-60,12,60);Rc(x0-8,G-66,16,6);P(`${x0-6},${G-66} ${x0},${G-86} ${x0+6},${G-66}`);break;
+    case 'nantes': Rc(x0-2,G-56,4,56);Rc(x0-26,G-58,40,5);Rc(x0+10,G-62,8,9);Rc(x0-24,G-53,1.5,22);break;
+    case 'strasbourg': case 'metz': Rc(x0-10,G-46,20,46);Rc(x0+2,G-62,8,16);P(`${x0+2},${G-62} ${x0+6},${G-90} ${x0+10},${G-62}`);break;
+    case 'montpellier': Rc(x0-16,G-34,32,34);out.push(`<path d="M${x0-7} ${G} V${G-16} A7 7 0 0 1 ${x0+7} ${G-16} V${G} Z" fill="#ffffff" opacity="0.35"/>`);Rc(x0-18,G-38,36,5);break;
+    case 'tours': Rc(x0-16,G-50,11,50);Rc(x0+5,G-50,11,50);Rc(x0-10,G-30,22,30);P(`${x0-16},${G-50} ${x0-10.5},${G-58} ${x0-5},${G-50}`);P(`${x0+5},${G-50} ${x0+10.5},${G-58} ${x0+16},${G-50}`);break;
+    case 'reims': case 'rouen': case 'orleans': Rc(x0-20,G-44,12,44);Rc(x0+8,G-44,12,44);Rc(x0-14,G-28,28,28);if(key==='rouen')P(`${x0-2},${G-28} ${x0},${G-80} ${x0+2},${G-28}`);break;
+    case 'grenoble': case 'alpes': P(`0,${G} ${scR(rnd,20,50)},${G-scR(rnd,40,60)} ${scR(rnd,70,90)},${G-scR(rnd,15,25)} ${scR(rnd,110,130)},${G-scR(rnd,45,65)} ${scR(rnd,150,170)},${G-scR(rnd,20,30)} 200,${G-scR(rnd,35,50)} 200,${G}`);
+      if(key==='grenoble'){out.push(`<line x1="${x0-40}" y1="${G-60}" x2="${x0+20}" y2="${G-30}" stroke="${f}" stroke-width="0.8"/>`);C(x0-20,G-48,3);C(x0,G-38,3);}break;
+    case 'clermont': P(`${x0-40},${G} ${x0-6},${G-48} ${x0+6},${G-48} ${x0+40},${G}`);Rc(x0-30,G-34,10,34);Rc(x0-18,G-34,10,34);break;
+    case 'lehavre': Rc(x0-5,G-80,10,80);Rc(x0-12,G-30,24,30);Rc(x0+20,G-50,2,50);Rc(x0+12,G-50,20,3);break;
+    case 'larochelle': Rc(x0-24,G-36,14,36);Rc(x0+10,G-30,14,30);P(`${x0-24},${G-36} ${x0-17},${G-46} ${x0-10},${G-36}`);break;
+    case 'avignon': Rc(x0-30,G-40,60,40);Rc(x0-30,G-48,10,8);Rc(x0+20,G-50,10,10);break;
+    case 'angers': for(let i=0;i<5;i++) Rc(x0-30+i*13,G-34,9,34);break;
+    case 'caen': Rc(x0-14,G-50,9,50);Rc(x0+5,G-50,9,50);P(`${x0-14},${G-50} ${x0-9.5},${G-66} ${x0-5},${G-50}`);P(`${x0+5},${G-50} ${x0+9.5},${G-66} ${x0+14},${G-50}`);Rc(x0-10,G-26,20,26);break;
+    case 'dijon': case 'bourgogne': Rc(x0-18,G-36,36,36);P(`${x0-22},${G-36} ${x0},${G-54} ${x0+22},${G-36}`);break;
+    case 'nice': case 'sud': case 'corse': P(`0,${G} 30,${G-30} 70,${G-18} 110,${G-38} 150,${G-22} 200,${G-34} 200,${G}`);break;
+    case 'bretagne': case 'brest': Rc(x0-3,G-50,6,50);Rc(x0-5,G-56,10,6);P(`${x0-5},${G-56} ${x0},${G-62} ${x0+5},${G-56}`);break;
+    case 'normandie': case 'caenN': P(`0,${G} 0,${G-30} 60,${G-34} 110,${G-28} 200,${G-32} 200,${G}`);break;
+    case 'tropiques': P(`${x0-50},${G} ${x0-10},${G-50} ${x0+4},${G-46} ${x0+50},${G}`);break;
+    default: P(`0,${G} 40,${G-scR(rnd,14,24)} 90,${G-scR(rnd,8,16)} 140,${G-scR(rnd,16,26)} 200,${G-scR(rnd,10,18)} 200,${G}`);
+  }
+  return out.join('');
+}
+const WATER={paris:.35,lyon:.4,bordeaux:.55,nantes:.55,tours:.5,loire:.35,marseille:.6,nice:.65,larochelle:.7,brest:.6,lehavre:.6,bretagne:.45,corse:.6,tropiques:.6,strasbourg:.3,rouen:.3,sud:.3,normandie:.3};
+/* Fenêtres */
+function scWin(x,y,w,h,cols,rows,c,lit,rnd,style){
+  const o=[], gx=w/cols, gy=h/rows, ww=gx*.55, wh=gy*.62;
+  for(let i=0;i<cols;i++) for(let j=0;j<rows;j++){
+    const X=x+i*gx+(gx-ww)/2, Y=y+j*gy+(gy-wh)/2, on=lit&&rnd()<.55;
+    if(style==='arch') o.push(`<path d="M${R2(X)} ${R2(Y+wh)} V${R2(Y+ww/2)} A${R2(ww/2)} ${R2(ww/2)} 0 0 1 ${R2(X+ww)} ${R2(Y+ww/2)} V${R2(Y+wh)} Z" fill="${on?'#F8D98A':c}"/>`);
+    else o.push(`<rect x="${R2(X)}" y="${R2(Y)}" width="${R2(ww)}" height="${R2(wh)}" fill="${on?'#F8D98A':c}"/>`);
+    if(!on&&style!=='glass') o.push(`<rect x="${R2(X)}" y="${R2(Y)}" width="${R2(ww*.45)}" height="${R2(wh*.4)}" fill="#ffffff" opacity="0.18"/>`);
+  }
+  return o.join('');
+}
+function scNeighbor(x,w,h,stone,roof,rnd,lit,timber){
+  const G=SC.G, y=G-h, o=[`<rect x="${R2(x)}" y="${R2(y)}" width="${R2(w)}" height="${R2(h)}" fill="${stone}"/>`];
+  if(timber){for(let k=0;k<4;k++){const yy=y+6+k*(h-10)/4;o.push(`<line x1="${R2(x)}" y1="${R2(yy)}" x2="${R2(x+w)}" y2="${R2(yy)}" stroke="#5A3A28" stroke-width="1"/>`);}
+    for(let k=0;k<=w;k+=7) o.push(`<line x1="${R2(x+k)}" y1="${R2(y)}" x2="${R2(x+k)}" y2="${G}" stroke="#5A3A28" stroke-width="0.8"/>`);}
+  o.push(`<polygon points="${R2(x-2)},${R2(y)} ${R2(x+4)},${R2(y-10)} ${R2(x+w-4)},${R2(y-10)} ${R2(x+w+2)},${R2(y)}" fill="${roof}"/>`);
+  o.push(scWin(x+2,y+4,w-4,h-10,Math.max(2,Math.round(w/9)),Math.max(2,Math.round(h/13)),'#3D5470',lit,rnd));
+  return o.join('');
+}
+/* Bâtiment principal selon le type d’école */
+function scMain(c,rnd,stone,roof,lit,special){
+  const G=SC.G, cat=c.cat, o=[], W=scR(rnd,78,104), X=100-W/2, H=scR(rnd,52,74), Y=G-H, glassC=lit?'#1E3A5A':'#6FA0C8';
+  const R=(x,y,w,h,f,extra)=>o.push(`<rect x="${R2(x)}" y="${R2(y)}" width="${R2(w)}" height="${R2(h)}" fill="${f}"${extra||''}/>`);
+  const P=(p,f,extra)=>o.push(`<polygon points="${p}" fill="${f}"${extra||''}/>`);
+  if(['com','num','media','ing','defense'].includes(cat)||(cat==='aut'&&rnd()<.3)){
+    /* bâtiment moderne vitré */
+    const towers=cat==='com'?scPick(rnd,[1,2]):1;
+    for(let t=0;t<towers;t++){const w=towers>1?W/2-3:W, x=X+t*(W/2+3), h=cat==='com'?H+scR(rnd,12,30)-t*10:H;
+      R(x,G-h,w,h,'#2B3442'); o.push(scWin(x+2,G-h+3,w-4,h-6,Math.round(w/9),Math.round(h/9),glassC,lit,rnd,'glass'));
+      o.push(`<polygon points="${R2(x+2)},${R2(G-h+3)} ${R2(x+w*.45)},${R2(G-h+3)} ${R2(x+2)},${R2(G-h*.55)}" fill="#ffffff" opacity="0.18"/>`);}
+    if(cat==='num'){for(let k=0;k<3;k++) o.push(`<path d="M${R2(100-6-k*5)} ${R2(Y-6-k*4)} A${6+k*5} ${6+k*5} 0 0 1 ${R2(100+6+k*5)} ${R2(Y-6-k*4)}" fill="none" stroke="#7FE9F5" stroke-width="1.4" opacity="0.8"/>`);}
+    if(cat==='media'){R(100-1,Y-24,2,24,'#2B3442');for(let k=1;k<3;k++)o.push(`<path d="M${R2(100-5*k)} ${R2(Y-24+5*k)} A${5*k} ${5*k} 0 0 1 ${R2(100+5*k)} ${R2(Y-24+5*k)}" fill="none" stroke="#F3D27A" stroke-width="1.2"/>`);}
+    if(cat==='ing'){o.push(`<circle cx="${R2(X+W-12)}" cy="${R2(Y-8)}" r="7" fill="none" stroke="#8C96A3" stroke-width="3" stroke-dasharray="3 2"/>`);R(X+8,Y-30,2,30,'#E1B54E');R(X+8,Y-30,34,2,'#E1B54E');}
+  } else if(cat==='art'){
+    /* atelier en brique à verrières */
+    R(X,Y,W,H,scPick(rnd,['#A84E36','#B8603F','#9C4A34',stone]));
+    const n=Math.round(W/16); for(let k=0;k<n;k++){const x=X+k*W/n;P(`${R2(x)},${R2(Y)} ${R2(x+W/n)},${R2(Y)} ${R2(x+W/n)},${R2(Y-10)}`,'#8FB3D1');}
+    o.push(scWin(X+3,Y+6,W-6,H-16,Math.round(W/16),2,'#36506B',lit,rnd,'arch'));
+  } else if(cat==='archi'){
+    R(X,Y+12,W*.65,H-12,'#EDEDED');R(X+W*.25,Y,W*.75,18,'#3A3F46');R(X+W*.25,Y+18,3,H-18,'#3A3F46');
+    o.push(scWin(X+4,Y+16,W*.6,H-24,4,3,glassC,lit,rnd,'glass'));
+  } else if(cat==='spt'){
+    o.push(`<path d="M${R2(X)} ${G} V${R2(Y+20)} Q${R2(100)} ${R2(Y-10)} ${R2(X+W)} ${R2(Y+20)} V${G} Z" fill="#DCE3EA"/>`);
+    o.push(`<path d="M${R2(X)} ${R2(Y+20)} Q${R2(100)} ${R2(Y-10)} ${R2(X+W)} ${R2(Y+20)}" fill="none" stroke="#8C96A3" stroke-width="3"/>`);
+    for(let k=1;k<6;k++) R(X+k*W/6,Y+14,1.4,G-Y-14,'#AEB8C4');
+    R(X+6,G-18,W-12,10,glassC);
+  } else if(cat==='agro'){
+    R(X,Y+16,W*.55,H-16,'#B5553C');P(`${R2(X-3)},${R2(Y+16)} ${R2(X+W*.275)},${R2(Y)} ${R2(X+W*.55+3)},${R2(Y+16)}`,'#6B3A2A');
+    o.push(`<path d="M${R2(X+W*.2)} ${G} V${R2(Y+34)} A${R2(W*.075)} ${R2(W*.075)} 0 0 1 ${R2(X+W*.35)} ${R2(Y+34)} V${G} Z" fill="#F1E8D4"/>`);
+    o.push(`<path d="M${R2(X+W*.6)} ${G} V${R2(Y+30)} Q${R2(X+W*.8)} ${R2(Y+12)} ${R2(X+W)} ${R2(Y+30)} V${G} Z" fill="#CFE6D9" opacity="0.9"/>`);
+    for(let k=0;k<5;k++) R(X+W*.6+k*W*.08,Y+26,0.8,G-Y-26,'#8FB8A3');
+  } else if(cat==='sante'){
+    R(X,Y,W,H,'#F2F2EE'); o.push(scWin(X+4,Y+6,W-8,H-22,Math.round(W/11),3,'#6E8FAF',lit,rnd));
+    R(100-7,Y-14,14,14,'#FFFFFF');R(100-2,Y-12,4,10,'#D33A3A');R(100-5,Y-9,10,4,'#D33A3A');
+    R(X+W/2-10,G-14,20,14,'#9FC4D9');
+  } else if(cat==='rech'){
+    R(X,Y+14,W,H-14,stone);o.push(`<path d="M${R2(100-18)} ${R2(Y+14)} A18 18 0 0 1 ${R2(100+18)} ${R2(Y+14)} Z" fill="#B9C3CF"/>`);R(100-2,Y-2,4,8,'#5B6575');
+    o.push(scWin(X+4,Y+18,W-8,H-26,Math.round(W/11),2,'#3D5470',lit,rnd,'arch'));
+  } else {
+    /* bâtiment classique : université, service public, lycée, autres */
+    R(X,Y,W,H,stone);
+    P(`${R2(X-2)},${R2(Y)} ${R2(X+5)},${R2(Y-11)} ${R2(X+W-5)},${R2(Y-11)} ${R2(X+W+2)},${R2(Y)}`,roof);
+    R(X-3,Y-1,W+6,3,'#00000022');
+    o.push(scWin(X+3,Y+5,W-6,H-12,Math.round(W/12),Math.max(2,Math.round(H/16)),'#3D5470',lit,rnd,rnd()<.3?'arch':''));
+    if(cat==='uni'||cat==='pol'||rnd()<.35){
+      const pw=W*.42, px=100-pw/2;R(px,Y-2,pw,H+2,'#F3EBDA');
+      P(`${R2(px-3)},${R2(Y-2)} ${R2(100)},${R2(Y-16)} ${R2(px+pw+3)},${R2(Y-2)}`,'#F3EBDA',' stroke="#CBB998" stroke-width="1"');
+      const n=4; for(let k=0;k<n;k++){R(px+3+k*(pw-8)/(n-1),Y+2,3.4,H-6,'#FBF6EA');R(px+5+k*(pw-8)/(n-1),Y+2,1.2,H-6,'#D9CCAD');}
+      R(100-4,G-14,8,14,'#4A3221');
+      if(cat==='uni'&&rnd()<.4) o.push(`<path d="M${R2(100-12)} ${R2(Y-16)} A12 12 0 0 1 ${R2(100+12)} ${R2(Y-16)} Z" fill="#B9C3CF"/>`);
+    } else { o.push(`<path d="M${R2(100-6)} ${G} V${R2(G-10)} A6 6 0 0 1 ${R2(100+6)} ${R2(G-10)} V${G} Z" fill="#4A3221"/>`); }
+    if(cat==='lyc'){o.push(`<circle cx="100" cy="${R2(Y-6)}" r="4" fill="#FBF7EC" stroke="#8C7A55" stroke-width="0.8"/>`);}
+    if(cat==='pol'||cat==='lyc'||rnd()<.3){R(X+W-8,Y-22,1,22,'#2F2F2F');R(X+W-7,Y-22,3,4,'#1F4FB8');R(X+W-4,Y-22,3,4,'#FFFFFF');R(X+W-1,Y-22,3,4,'#C93A32');}
+  }
+  return {svg:o.join(''),top:Y,X,W};
+}
+/* Objets au premier plan, liés au type d’école */
+function scProp(cat,rnd,x){
+  const G=SC.G, o=[];
+  const R=(a,b,w,h,f)=>o.push(`<rect x="${R2(a)}" y="${R2(b)}" width="${R2(w)}" height="${R2(h)}" fill="${f}"/>`);
+  switch(cat){
+    case 'art': { /* chevalet et tableau */
+      o.push(`<line x1="${x}" y1="${G+12}" x2="${x+6}" y2="${G-14}" stroke="#7A5233" stroke-width="1.4"/><line x1="${x+12}" y1="${G+12}" x2="${x+6}" y2="${G-14}" stroke="#7A5233" stroke-width="1.4"/>`);
+      R(x-3,G-12,18,14,'#F7F1E3');R(x-1.5,G-10.5,15,11,scPick(rnd,['#5E8FBF','#E0A43A','#C2417A','#4E8A1E']));
+      o.push(`<circle cx="${x+4}" cy="${G-6}" r="2.6" fill="${scPick(rnd,['#F3D27A','#FFFFFF','#E5484D'])}"/><path d="M${x-1.5} ${G-1} L${x+4} ${G-5} L${x+8} ${G-2} L${x+13.5} ${G-6} V${G+0.5} H${x-1.5} Z" fill="#2F5D3A" opacity="0.8"/>`);break;}
+    case 'spt': o.push(`<circle cx="${x}" cy="${G+8}" r="4" fill="#FFFFFF" stroke="#1E1E1E" stroke-width="0.8"/><path d="M${x-2} ${G+6} l2 -1 2 1 -0.8 2.2 h-2.4z" fill="#1E1E1E"/>`);R(x+10,G-10,1.2,18,'#FFFFFF');R(x+24,G-10,1.2,18,'#FFFFFF');R(x+10,G-10,15.2,1.2,'#FFFFFF');break;
+    case 'sante': R(x,G+1,22,10,'#FFFFFF');R(x+15,G-3,7,5,'#FFFFFF');R(x+4,G+3,4,1.6,'#D33A3A');R(x+5.2,G+1.8,1.6,4,'#D33A3A');o.push(`<circle cx="${x+5}" cy="${G+12}" r="2.4" fill="#1E1E1E"/><circle cx="${x+18}" cy="${G+12}" r="2.4" fill="#1E1E1E"/>`);break;
+    case 'agro': for(let k=0;k<6;k++) o.push(`<line x1="${x-20+k*8}" y1="${G+14}" x2="${x-10+k*8}" y2="${G+2}" stroke="#7FA34A" stroke-width="2"/>`);R(x+20,G+2,12,7,'#C93A32');o.push(`<circle cx="${x+22}" cy="${G+10}" r="3" fill="#1E1E1E"/><circle cx="${x+31}" cy="${G+11}" r="2" fill="#1E1E1E"/>`);break;
+    case 'pol': o.push(`<g stroke="#C9931F" stroke-width="1.2" fill="none"><line x1="${x}" y1="${G-6}" x2="${x}" y2="${G+10}"/><line x1="${x-8}" y1="${G-3}" x2="${x+8}" y2="${G-3}"/></g><path d="M${x-11} ${G+2} q3 3 6 0z M${x+5} ${G+2} q3 3 6 0z" fill="#E1B54E"/>`);break;
+    case 'ing': o.push(`<circle cx="${x}" cy="${G+6}" r="6" fill="none" stroke="#8C96A3" stroke-width="2.4" stroke-dasharray="2.4 1.6"/><circle cx="${x}" cy="${G+6}" r="2" fill="#8C96A3"/>`);break;
+    case 'num': R(x-8,G+2,16,10,'#2B3442');R(x-7,G+3,14,7,'#7FE9F5');R(x-10,G+12,20,1.6,'#5B6575');break;
+    case 'com': R(x-6,G+2,12,9,'#6B4A2B');R(x-2.5,G,5,2.4,'#6B4A2B');break;
+    case 'media': R(x-1,G-6,2,16,'#2B3442');o.push(`<rect x="${x-3.5}" y="${G-12}" width="7" height="9" rx="3.5" fill="#5B6575"/>`);break;
+    case 'archi': o.push(`<g stroke="#C9931F" stroke-width="1.4"><line x1="${x}" y1="${G-12}" x2="${x-7}" y2="${G+12}"/><line x1="${x}" y1="${G-12}" x2="${x+7}" y2="${G+12}"/></g><circle cx="${x}" cy="${G-12}" r="1.8" fill="#C9931F"/>`);break;
+    case 'rech': o.push(`<line x1="${x}" y1="${G+12}" x2="${x}" y2="${G}" stroke="#3A3F46" stroke-width="1.2"/><rect x="${x-10}" y="${G-6}" width="16" height="4" rx="2" fill="#3A3F46" transform="rotate(-25 ${x} ${G-4})"/>`);break;
+    case 'lyc': R(x-5,G+1,10,11,'#E5484D');R(x-3,G-1,6,3,'#B83A3E');break;
+    case 'uni': R(x-7,G+6,14,2.4,'#1F4FB8');R(x-6,G+3.6,12,2.4,'#C93A32');R(x-7.5,G+1.2,15,2.4,'#E1B54E');break;
+    default: o.push(`<circle cx="${x-4}" cy="${G+10}" r="3.4" fill="none" stroke="#1E1E1E" stroke-width="0.9"/><circle cx="${x+6}" cy="${G+10}" r="3.4" fill="none" stroke="#1E1E1E" stroke-width="0.9"/><path d="M${x-4} ${G+10} L${x} ${G+4} L${x+6} ${G+10} M${x} ${G+4} h4" stroke="#1E1E1E" stroke-width="0.9" fill="none"/>`);
+  }
+  return o.join('');
+}
+function scTree(x,rnd,kind,night){
+  const G=SC.G, d=night?'#24402A':'#4F7A30', m=night?'#2E5233':'#6A9A42';
+  if(kind==='palm') return `<path d="M${x} ${G+6} Q${x+2} ${G-14} ${x+1} ${G-30}" stroke="#7A5A3A" stroke-width="2.2" fill="none"/>${[[-14,-4],[14,-4],[-10,-12],[10,-12],[0,-14]].map(([a,b])=>`<path d="M${x+1} ${G-30} q${a/2} ${b-6} ${a} ${b+6}" stroke="${m}" stroke-width="3" fill="none" stroke-linecap="round"/>`).join('')}`;
+  if(kind==='pine') return `<rect x="${x-1}" y="${G-6}" width="2" height="12" fill="#5A4030"/><polygon points="${x},${G-34} ${x-9},${G-4} ${x+9},${G-4}" fill="${d}"/><polygon points="${x},${G-42} ${x-7},${G-18} ${x+7},${G-18}" fill="${m}"/>`;
+  if(kind==='cypress') return `<ellipse cx="${x}" cy="${G-14}" rx="4" ry="18" fill="${d}"/>`;
+  const r=scR(rnd,9,13);
+  return `<rect x="${x-1.4}" y="${G-14}" width="2.8" height="22" fill="#5A4636"/><circle cx="${x}" cy="${R2(G-18)}" r="${R2(r)}" fill="${d}"/><circle cx="${R2(x-r*.6)}" cy="${R2(G-12)}" r="${R2(r*.65)}" fill="${m}"/><circle cx="${R2(x+r*.6)}" cy="${R2(G-13)}" r="${R2(r*.7)}" fill="${m}"/>`;
+}
+function sceneSVG(c){
+  const rnd=rng(hashStr('scene'+c.id+c.n)), city=norm(c.city), reg=norm(c.reg||'');
+  let key=null; for(const [rx,k] of CITY_KEYS) if(rx.test(city)){key=k;break;}
+  let rk='def'; for(const [rx,k] of REGION_STYLE) if(rx.test(reg)){rk=k;break;}
+  const look=key||rk, stone=scPick(rnd,STONE[look]||STONE[rk]||STONE.def), roof=ROOF[look]||ROOF[rk]||ROOF.def;
+  const special=RORD[c.r]>=3;
+  /* moment de la journée : plus de couchers et de nuits pour les cartes spéciales */
+  const tr=rnd(), time=special?(tr<.35?'gold':tr<.6?'night':tr<.8?'dusk':'day'):(tr<.6?'day':tr<.82?'gold':tr<.95?'dusk':'night');
+  const SKY={day:['#8FB8E2','#E8F1F7'],gold:['#F0B77F','#FBE6C4'],dusk:['#5A6BA8','#EBA79A'],night:['#141C44','#3A4A86']}[time];
+  const night=time==='night', lit=night||time==='dusk';
+  const gid='sk'+String(c.id).replace(/\W/g,''), flip=rnd()<.5;
+  const farCol=night?'#0F1636':time==='dusk'?'#4B5486':time==='gold'?'#C99A78':'#9AA7BE';
+  const o=[`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${SKY[0]}"/><stop offset="1" stop-color="${SKY[1]}"/></linearGradient></defs>`,
+    `<rect width="200" height="160" fill="url(#${gid})"/>`];
+  if(night){for(let k=0;k<26;k++) o.push(`<circle cx="${R2(scR(rnd,0,200))}" cy="${R2(scR(rnd,0,70))}" r="${R2(scR(rnd,.3,1))}" fill="#FFFFFF" opacity="${R2(scR(rnd,.4,1))}"/>`);
+    o.push(`<circle cx="${R2(scR(rnd,20,180))}" cy="${R2(scR(rnd,14,30))}" r="7" fill="#F6F1D9"/>`);}
+  else { o.push(`<circle cx="${R2(scR(rnd,20,180))}" cy="${R2(scR(rnd,16,40))}" r="${R2(scR(rnd,7,12))}" fill="${time==='day'?'#FFF6D6':'#FFE2A8'}" opacity="0.95"/>`);
+    for(let k=0;k<3;k++) o.push(`<ellipse cx="${R2(scR(rnd,0,200))}" cy="${R2(scR(rnd,10,50))}" rx="${R2(scR(rnd,14,30))}" ry="${R2(scR(rnd,3,6))}" fill="#FFFFFF" opacity="${time==='day'?0.7:0.35}"/>`); }
+  if(special&&!night) o.push(`<g opacity="0.18">${[0,1,2,3,4].map(k=>`<polygon points="100,-10 ${60+k*22},160 ${70+k*22},160" fill="#FFF3C2"/>`).join('')}</g>`);
+  o.push(`<g opacity="0.85">${scFar(look,rnd,farCol,flip)}</g>`);
+  const timber=/strasbourg|rennes|rouen|normandie|est|dijon/.test(look)&&rnd()<.6;
+  const nH=()=>scR(rnd,40,64);
+  o.push(scNeighbor(-6,scR(rnd,38,52),nH(),stone,roof,rnd,lit,timber));
+  o.push(scNeighbor(scR(rnd,150,160),scR(rnd,40,56),nH(),scPick(rnd,STONE[look]||STONE.def),roof,rnd,lit,timber&&rnd()<.5));
+  const m=scMain(c,rnd,stone,roof,lit,special); o.push(m.svg);
+  /* enseigne avec l’icône et le monogramme de l’école (posée après, jamais retournée) */
+  const ic=iconFor(c,rnd), mo=mono(c), sw=Math.max(26,mo.length*6+16);
+  const sign=(`<g transform="translate(${R2(100-sw/2)} ${R2(m.top+6)})"><rect width="${R2(sw)}" height="13" rx="3" fill="#14204A" opacity="0.92"/><rect x="0.6" y="0.6" width="${R2(sw-1.2)}" height="11.8" rx="2.6" fill="none" stroke="#F3D27A" stroke-width="0.8"/><text x="7" y="9.6" font-size="8" text-anchor="middle">${ic}</text><text x="${R2(13+(sw-13)/2)}" y="9.4" font-size="7" font-weight="800" text-anchor="middle" fill="#F3D27A" font-family="Plus Jakarta Sans,system-ui,sans-serif">${esc(mo)}</text></g>`);
+  /* sol : quai et eau, rue ou pelouse */
+  const water=rnd()<(WATER[look]||WATER[rk]||0);
+  const G=SC.G;
+  if(water){o.push(`<rect x="0" y="${G}" width="200" height="8" fill="#C7B998"/><rect x="0" y="${G}" width="200" height="1.6" fill="#DCCFB2"/><rect x="0" y="${G+8}" width="200" height="${160-G-8}" fill="${night?'#1B2A4A':'#5F84A8'}"/>`);
+    for(let k=0;k<7;k++) o.push(`<line x1="${R2(scR(rnd,0,180))}" y1="${R2(scR(rnd,G+12,158))}" x2="${R2(scR(rnd,0,200))}" y2="${R2(scR(rnd,G+12,158))}" stroke="${night?'#F8D98A':'#9DBAD6'}" stroke-width="0.8" opacity="0.6"/>`);
+    if(rnd()<.5) o.push(`<path d="M${R2(scR(rnd,20,120))} ${G+18} l50 0 -6 7 -38 0z" fill="#3A2E2A"/>`);
+  } else {
+    const green=['agro','spt','lyc','uni'].includes(c.cat)&&rnd()<.5;
+    o.push(`<rect x="0" y="${G}" width="200" height="${160-G}" fill="${green?(night?'#2A4A2E':'#7FAE58'):(night?'#3E4250':'#9A9286')}"/><rect x="0" y="${G}" width="200" height="4" fill="${night?'#555A68':'#BDB4A6'}"/>`);
+    if(!green) for(let k=0;k<10;k++) o.push(`<circle cx="${R2(scR(rnd,0,200))}" cy="${R2(scR(rnd,G+8,158))}" r="1.3" fill="#00000022"/>`);
+  }
+  /* arbres, réverbère, passants, objet de l’école */
+  const tk=/nice|sud|tropiques|corse|marseille|montpellier/.test(look)?'palm':/alpes|grenoble/.test(look)?'pine':/occitanie|avignon/.test(look)&&rnd()<.5?'cypress':'leaf';
+  o.push(scTree(flip?scR(rnd,168,190):scR(rnd,10,32),rnd,tk,night));
+  if(rnd()<.6) o.push(scTree(flip?scR(rnd,10,30):scR(rnd,170,192),rnd,tk,night));
+  const lx=flip?scR(rnd,34,46):scR(rnd,154,166);
+  o.push(`<rect x="${R2(lx)}" y="${G-26}" width="1.6" height="32" fill="#1E2A24"/><polygon points="${R2(lx-3)},${G-30} ${R2(lx+4.6)},${G-30} ${R2(lx+3)},${G-25} ${R2(lx-1.4)},${G-25}" fill="#1E2A24"/><rect x="${R2(lx-0.8)}" y="${G-29.4}" width="3.2" height="3.6" fill="${lit?'#FFE7A0':'#F6E6A8'}"/>${lit?`<circle cx="${R2(lx+0.8)}" cy="${G-27.6}" r="7" fill="#FFE7A0" opacity="0.25"/>`:''}`);
+  const np=Math.floor(scR(rnd,0,4)); for(let k=0;k<np;k++){const px=scR(rnd,50,150),col=scPick(rnd,['#2D3440','#7A3B3B','#1F4FB8','#B07A0E','#2F6B3F']);o.push(`<circle cx="${R2(px)}" cy="${G+1}" r="2.2" fill="#2D3440"/><rect x="${R2(px-1.8)}" y="${G+3}" width="3.6" height="8" rx="1.4" fill="${col}"/>`);}
+  o.push(scProp(c.cat,rnd,Math.round(flip?scR(rnd,128,146):scR(rnd,52,70))));
+  if(special){o.push(`<g fill="#FFF3C2">${[0,1,2,3,4,5].map(()=>{const sx=scR(rnd,10,190),sy=scR(rnd,8,90),s=scR(rnd,1.5,3);return `<path d="M${R2(sx)} ${R2(sy-s)} L${R2(sx+s*.3)} ${R2(sy-s*.3)} L${R2(sx+s)} ${R2(sy)} L${R2(sx+s*.3)} ${R2(sy+s*.3)} L${R2(sx)} ${R2(sy+s)} L${R2(sx-s*.3)} ${R2(sy+s*.3)} L${R2(sx-s)} ${R2(sy)} L${R2(sx-s*.3)} ${R2(sy-s*.3)}Z"/>`;}).join('')}</g>`);}
+  const body=o.join('');
+  return `<svg viewBox="0 0 200 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${flip?`<g transform="translate(200 0) scale(-1 1)">${body}</g>`:body}${sign}</svg>`;
+}
+
+/* ===== Illustrations dessinées à la main (cartes spéciales) ===== */
+const CUSTOM_ART={
+'Lycée Louis Le Grand|Paris':`<svg viewBox="40 20 300 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="llgsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FB6DE"/><stop offset="1" stop-color="#E9F1F7"/></linearGradient>
+<g id="llgw"><rect x="0" y="0" width="14" height="24" fill="#CDBD9C"/><rect x="2" y="2" width="10" height="20" fill="#34495F"/><polygon points="2,2 12,2 2,12" fill="#5D7894"/><line x1="7" y1="2" x2="7" y2="22" stroke="#E9E4D8" stroke-width="0.8"/><line x1="2" y1="9" x2="12" y2="9" stroke="#E9E4D8" stroke-width="0.8"/><line x1="2" y1="15.5" x2="12" y2="15.5" stroke="#E9E4D8" stroke-width="0.8"/><rect x="-1" y="-3" width="16" height="3" fill="#D9CAAA"/><rect x="-1" y="24" width="16" height="2" fill="#BFAE8B"/><rect x="-1" y="17" width="16" height="7" fill="none" stroke="#1E1E1E" stroke-width="0.7"/><line x1="3" y1="17" x2="3" y2="24" stroke="#1E1E1E" stroke-width="0.5"/><line x1="7" y1="17" x2="7" y2="24" stroke="#1E1E1E" stroke-width="0.5"/><line x1="11" y1="17" x2="11" y2="24" stroke="#1E1E1E" stroke-width="0.5"/></g>
+<g id="llgd"><polygon points="0,14 9,4 18,14" fill="#D9CAAA"/><rect x="2" y="13" width="14" height="14" fill="#D9CAAA"/><rect x="5" y="15" width="8" height="11" fill="#34495F"/><line x1="9" y1="15" x2="9" y2="26" stroke="#E9E4D8" stroke-width="0.6"/></g></defs>
+<rect x="0" y="0" width="380" height="300" fill="url(#llgsky)"/><ellipse cx="80" cy="34" rx="40" ry="9" fill="#F4F8FB" opacity="0.8"/><ellipse cx="300" cy="24" rx="34" ry="7" fill="#F4F8FB" opacity="0.7"/>
+<rect x="0" y="70" width="40" height="150" fill="#C9C2B4"/><rect x="345" y="62" width="35" height="160" fill="#C2BBAC"/>
+<rect x="66" y="44" width="10" height="26" fill="#B5A587"/><rect x="65" y="42" width="12" height="4" fill="#9C8D70"/><rect x="304" y="44" width="10" height="26" fill="#B5A587"/><rect x="303" y="42" width="12" height="4" fill="#9C8D70"/>
+<polygon points="28,98 44,62 336,62 352,98" fill="#56606C"/><g stroke="#4A535E" stroke-width="0.6"><line x1="60" y1="64" x2="52" y2="96"/><line x1="90" y1="64" x2="86" y2="96"/><line x1="120" y1="64" x2="118" y2="96"/><line x1="150" y1="64" x2="149" y2="96"/><line x1="230" y1="64" x2="231" y2="96"/><line x1="260" y1="64" x2="262" y2="96"/><line x1="290" y1="64" x2="294" y2="96"/><line x1="320" y1="64" x2="328" y2="96"/></g>
+<rect x="40" y="60" width="300" height="3" fill="#3E4650"/><use href="#llgd" x="58" y="68"/><use href="#llgd" x="94" y="68"/><use href="#llgd" x="130" y="68"/><use href="#llgd" x="232" y="68"/><use href="#llgd" x="268" y="68"/><use href="#llgd" x="304" y="68"/>
+<rect x="28" y="98" width="324" height="132" fill="#E6D8BC"/><rect x="26" y="96" width="328" height="5" fill="#D1C09D"/><rect x="26" y="96" width="328" height="1.5" fill="#F3EAD6"/>
+<g stroke="#D7C7A6" stroke-width="0.5"><line x1="28" y1="108" x2="352" y2="108"/><line x1="28" y1="118" x2="352" y2="118"/><line x1="28" y1="128" x2="352" y2="128"/><line x1="28" y1="138" x2="352" y2="138"/><line x1="28" y1="148" x2="352" y2="148"/><line x1="28" y1="158" x2="352" y2="158"/><line x1="28" y1="168" x2="352" y2="168"/></g>
+<rect x="28" y="176" width="324" height="4" fill="#D1C09D"/><g fill="#DCCBAA"><rect x="28" y="182" width="324" height="7"/><rect x="28" y="194" width="324" height="7"/><rect x="28" y="206" width="324" height="7"/><rect x="28" y="218" width="324" height="7"/></g>
+<use href="#llgw" x="40" y="106"/><use href="#llgw" x="66" y="106"/><use href="#llgw" x="92" y="106"/><use href="#llgw" x="118" y="106"/><use href="#llgw" x="144" y="106"/><use href="#llgw" x="222" y="106"/><use href="#llgw" x="248" y="106"/><use href="#llgw" x="274" y="106"/><use href="#llgw" x="300" y="106"/><use href="#llgw" x="326" y="106"/>
+<use href="#llgw" x="40" y="142"/><use href="#llgw" x="66" y="142"/><use href="#llgw" x="92" y="142"/><use href="#llgw" x="118" y="142"/><use href="#llgw" x="144" y="142"/><use href="#llgw" x="222" y="142"/><use href="#llgw" x="248" y="142"/><use href="#llgw" x="274" y="142"/><use href="#llgw" x="300" y="142"/><use href="#llgw" x="326" y="142"/>
+<g fill="#34495F"><rect x="42" y="188" width="10" height="16" rx="5"/><rect x="68" y="188" width="10" height="16" rx="5"/><rect x="94" y="188" width="10" height="16" rx="5"/><rect x="120" y="188" width="10" height="16" rx="5"/><rect x="146" y="188" width="10" height="16" rx="5"/><rect x="224" y="188" width="10" height="16" rx="5"/><rect x="250" y="188" width="10" height="16" rx="5"/><rect x="276" y="188" width="10" height="16" rx="5"/><rect x="302" y="188" width="10" height="16" rx="5"/><rect x="328" y="188" width="10" height="16" rx="5"/></g>
+<rect x="166" y="76" width="48" height="154" fill="#EFE4CC"/><rect x="214" y="80" width="4" height="150" fill="#CDBB96"/><rect x="166" y="76" width="4" height="154" fill="#F6EEDC"/><rect x="210" y="76" width="4" height="154" fill="#D9C8A5"/>
+<polygon points="160,80 190,56 220,80" fill="#EFE4CC" stroke="#C3B08A" stroke-width="2"/><polygon points="168,78 190,61 212,78" fill="#E3D5B6"/>
+<line x1="190" y1="56" x2="190" y2="30" stroke="#2F2F2F" stroke-width="1.4"/><rect x="190" y="30" width="7" height="10" fill="#1F4FB8"/><rect x="197" y="30" width="7" height="10" fill="#FFFFFF"/><rect x="204" y="30" width="7" height="10" fill="#C93A32"/>
+<circle cx="190" cy="72" r="6" fill="#FBF7EC" stroke="#8C7A55" stroke-width="1.4"/><line x1="190" y1="72" x2="190" y2="68" stroke="#2F2F2F" stroke-width="1"/><line x1="190" y1="72" x2="193" y2="73" stroke="#2F2F2F" stroke-width="1"/>
+<rect x="166" y="96" width="48" height="6" fill="#D1C09D"/><use href="#llgw" x="183" y="114"/><use href="#llgw" x="183" y="146"/>
+<path d="M174 230 V196 A16 16 0 0 1 206 196 V230 Z" fill="#4A3221"/><path d="M176 230 V197 A14 14 0 0 1 204 197 V230 Z" fill="#5E412B"/><line x1="190" y1="183" x2="190" y2="230" stroke="#3A2618" stroke-width="1.4"/>
+<rect x="0" y="230" width="380" height="14" fill="#B9B1A3"/><rect x="0" y="244" width="380" height="56" fill="#8C8478"/>
+<rect x="46" y="186" width="5" height="48" fill="#4C3A2B"/><circle cx="48" cy="172" r="20" fill="#4F7A30"/><circle cx="38" cy="184" r="13" fill="#5E8C3A"/><circle cx="60" cy="184" r="14" fill="#6A9A42"/><circle cx="48" cy="160" r="12" fill="#6A9A42"/>
+<rect x="329" y="186" width="5" height="48" fill="#4C3A2B"/><circle cx="332" cy="172" r="20" fill="#4F7A30"/><circle cx="320" cy="184" r="14" fill="#6A9A42"/><circle cx="344" cy="182" r="13" fill="#5E8C3A"/><circle cx="332" cy="160" r="12" fill="#6A9A42"/>
+<rect x="246" y="196" width="2.4" height="40" fill="#1E2A24"/><polygon points="241,190 253,190 250,198 244,198" fill="#1E2A24"/><rect x="243.5" y="191" width="7" height="6" fill="#F6E6A8"/>
+<g fill="#2D3440"><circle cx="118" cy="226" r="3"/><rect x="115.5" y="229" width="5" height="11" rx="2"/><circle cx="292" cy="225" r="3"/><rect x="289.5" y="228" width="5" height="12" rx="2"/></g></svg>`,
+'École nationale de la magistrature|Paris':`<svg viewBox="0 0 300 224" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="enmsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9FBFE6"/><stop offset="1" stop-color="#F3E5D2"/></linearGradient></defs>
+<rect width="300" height="224" fill="url(#enmsky)"/><ellipse cx="70" cy="22" rx="30" ry="6" fill="#F6F9FC" opacity="0.8"/>
+<g fill="#B9B3C6"><polygon points="262,22 266,22 280,150 248,150"/><rect x="252" y="96" width="24" height="4"/><rect x="246" y="128" width="36" height="4"/></g>
+<rect x="0" y="62" width="62" height="112" fill="#E3D6BB"/><polygon points="-4,64 8,44 54,44 66,64" fill="#55606D"/>
+<g fill="#36506B"><rect x="8" y="72" width="9" height="15"/><rect x="26" y="72" width="9" height="15"/><rect x="44" y="72" width="9" height="15"/><rect x="8" y="98" width="9" height="15"/><rect x="26" y="98" width="9" height="15"/><rect x="44" y="98" width="9" height="15"/><rect x="8" y="124" width="9" height="15"/><rect x="26" y="124" width="9" height="15"/><rect x="44" y="124" width="9" height="15"/></g>
+<rect x="196" y="40" width="6" height="40" fill="#8A7C66"/><polygon points="194,42 199,6 204,42" fill="#6E5F4A"/><circle cx="199" cy="6" r="2" fill="#E1B54E"/>
+<rect x="84" y="56" width="132" height="22" fill="#5A6370"/><polygon points="80,58 150,30 220,58" fill="#5A6370"/><rect x="76" y="70" width="148" height="8" fill="#DCCFB2"/>
+<polygon points="72,72 150,40 228,72" fill="#EFE6D2" stroke="#CBBB98" stroke-width="2"/><polygon points="86,69 150,46 214,69" fill="#E2D6BB"/>
+<g stroke="#C9931F" stroke-width="2" fill="none" stroke-linecap="round"><line x1="150" y1="50" x2="150" y2="66"/><line x1="134" y1="54" x2="166" y2="54"/><line x1="134" y1="54" x2="129" y2="62"/><line x1="134" y1="54" x2="139" y2="62"/><line x1="166" y1="54" x2="161" y2="62"/><line x1="166" y1="54" x2="171" y2="62"/></g>
+<path d="M128 62 Q134 67 140 62 Z" fill="#E1B54E"/><path d="M160 62 Q166 67 172 62 Z" fill="#E1B54E"/>
+<rect x="76" y="72" width="148" height="6" fill="#D6C7A6"/><rect x="80" y="78" width="140" height="70" fill="#E9DEC6"/>
+<g><rect x="88" y="80" width="10" height="66" fill="#F6F0E2"/><rect x="110" y="80" width="10" height="66" fill="#F6F0E2"/><rect x="132" y="80" width="10" height="66" fill="#F6F0E2"/><rect x="158" y="80" width="10" height="66" fill="#F6F0E2"/><rect x="180" y="80" width="10" height="66" fill="#F6F0E2"/><rect x="202" y="80" width="10" height="66" fill="#F6F0E2"/></g>
+<g fill="#D9CCAD"><rect x="95" y="80" width="3" height="66"/><rect x="117" y="80" width="3" height="66"/><rect x="139" y="80" width="3" height="66"/><rect x="165" y="80" width="3" height="66"/><rect x="187" y="80" width="3" height="66"/><rect x="209" y="80" width="3" height="66"/></g>
+<rect x="144" y="104" width="12" height="42" fill="#4A3221"/><rect x="100" y="98" width="8" height="18" fill="#36506B"/><rect x="122" y="98" width="8" height="18" fill="#36506B"/><rect x="170" y="98" width="8" height="18" fill="#36506B"/><rect x="192" y="98" width="8" height="18" fill="#36506B"/>
+<rect x="74" y="146" width="152" height="5" fill="#D6C7A6"/><rect x="70" y="151" width="160" height="5" fill="#CDBD9B"/><rect x="66" y="156" width="168" height="5" fill="#C4B391"/>
+<line x1="84" y1="78" x2="84" y2="60" stroke="#2F2F2F" stroke-width="1"/><rect x="84" y="60" width="5" height="7" fill="#1F4FB8"/><rect x="89" y="60" width="5" height="7" fill="#FFFFFF"/><rect x="94" y="60" width="5" height="7" fill="#C93A32"/>
+<rect x="234" y="128" width="4" height="34" fill="#4C3A2B"/><circle cx="236" cy="118" r="15" fill="#4F7A30"/><circle cx="226" cy="126" r="10" fill="#6A9A42"/><circle cx="246" cy="128" r="11" fill="#5E8C3A"/>
+<rect x="0" y="161" width="300" height="14" fill="#C7B998"/><rect x="0" y="161" width="300" height="3" fill="#DCCFB2"/>
+<rect x="14" y="152" width="22" height="10" fill="#2F6B3F"/><rect x="40" y="152" width="22" height="10" fill="#2F6B3F"/><rect x="18" y="154" width="5" height="6" fill="#C93A32"/><rect x="25" y="154" width="5" height="6" fill="#E1B54E"/><rect x="45" y="154" width="5" height="6" fill="#1F4FB8"/>
+<rect x="262" y="118" width="2.6" height="44" fill="#1E2A24"/><rect x="254" y="122" width="19" height="2" fill="#1E2A24"/><rect x="252.3" y="125" width="3.4" height="5" fill="#F6E6A8"/><rect x="270.3" y="125" width="3.4" height="5" fill="#F6E6A8"/>
+<rect x="0" y="175" width="300" height="49" fill="#5F84A8"/><g stroke="#8FB0CF" stroke-width="1.2" opacity="0.8"><line x1="10" y1="186" x2="40" y2="186"/><line x1="70" y1="194" x2="110" y2="194"/><line x1="150" y1="184" x2="180" y2="184"/><line x1="200" y1="200" x2="240" y2="200"/><line x1="120" y1="214" x2="160" y2="214"/></g>
+<path d="M176 200 L268 200 L260 212 L182 212 Z" fill="#3A2E2A"/><rect x="194" y="192" width="44" height="8" fill="#E9DEC6"/></svg>`,
+'École Pigier Tours|Tours':`<svg viewBox="0 0 300 224" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="pgtsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9CC4E8"/><stop offset="1" stop-color="#F3E9DA"/></linearGradient></defs>
+<rect width="300" height="224" fill="url(#pgtsky)"/><ellipse cx="230" cy="26" rx="34" ry="7" fill="#F7FAFC" opacity="0.8"/>
+<g fill="#D9D3C6"><rect x="108" y="22" width="16" height="48"/><polygon points="108,22 116,4 124,22"/><rect x="132" y="22" width="16" height="48"/><polygon points="132,22 140,4 148,22"/><rect x="112" y="46" width="34" height="24"/></g>
+<polygon points="0,78 18,44 150,44 168,78" fill="#4E5866"/>
+<polygon points="34,62 43,52 52,62" fill="#F1ECDF"/><rect x="36" y="61" width="14" height="13" fill="#F1ECDF"/><rect x="39" y="63" width="8" height="10" fill="#3B5168"/>
+<polygon points="76,62 85,52 94,62" fill="#F1ECDF"/><rect x="78" y="61" width="14" height="13" fill="#F1ECDF"/><rect x="81" y="63" width="8" height="10" fill="#3B5168"/>
+<polygon points="118,62 127,52 136,62" fill="#F1ECDF"/><rect x="120" y="61" width="14" height="13" fill="#F1ECDF"/><rect x="123" y="63" width="8" height="10" fill="#3B5168"/>
+<rect x="0" y="78" width="168" height="110" fill="#F1ECDF"/><rect x="0" y="76" width="170" height="4" fill="#DCD3BE"/><rect x="0" y="146" width="168" height="3" fill="#DCD3BE"/>
+<g fill="#3B5168"><rect x="14" y="88" width="12" height="22"/><rect x="46" y="88" width="12" height="22"/><rect x="78" y="88" width="12" height="22"/><rect x="110" y="88" width="12" height="22"/><rect x="142" y="88" width="12" height="22"/><rect x="14" y="120" width="12" height="20"/><rect x="46" y="120" width="12" height="20"/><rect x="78" y="120" width="12" height="20"/><rect x="110" y="120" width="12" height="20"/><rect x="142" y="120" width="12" height="20"/><rect x="14" y="156" width="12" height="20" rx="6"/><rect x="46" y="156" width="12" height="20" rx="6"/><rect x="110" y="156" width="12" height="20" rx="6"/><rect x="142" y="156" width="12" height="20" rx="6"/></g>
+<path d="M72 188 V164 A12 12 0 0 1 96 164 V188 Z" fill="#5E412B"/>
+<rect x="168" y="60" width="132" height="128" fill="#2B3442"/>
+<g fill="#7FAED6"><rect x="172" y="64" width="28" height="26"/><rect x="203" y="64" width="28" height="26"/><rect x="234" y="64" width="28" height="26"/><rect x="265" y="64" width="31" height="26"/><rect x="172" y="93" width="28" height="26"/><rect x="203" y="93" width="28" height="26"/><rect x="234" y="93" width="28" height="26"/><rect x="265" y="93" width="31" height="26"/><rect x="172" y="122" width="28" height="26"/><rect x="203" y="122" width="28" height="26"/><rect x="234" y="122" width="28" height="26"/><rect x="265" y="122" width="31" height="26"/></g>
+<g fill="#FFFFFF" opacity="0.35"><polygon points="172,64 186,64 172,82"/><polygon points="203,64 217,64 203,82"/><polygon points="234,93 248,93 234,111"/><polygon points="265,64 279,64 265,82"/></g>
+<rect x="168" y="150" width="132" height="12" fill="#14204A"/><rect x="176" y="154" width="40" height="4" rx="2" fill="#F3D27A"/>
+<rect x="172" y="164" width="124" height="24" fill="#5D8FBE"/><rect x="214" y="166" width="40" height="22" fill="#2B3442"/><rect x="216" y="168" width="17" height="20" fill="#8DB9DD"/><rect x="235" y="168" width="17" height="20" fill="#8DB9DD"/>
+<rect x="0" y="188" width="300" height="10" fill="#C7C0B3"/><rect x="0" y="198" width="300" height="26" fill="#8C8478"/>
+<rect x="150" y="176" width="150" height="34" rx="9" fill="#E3E7EC"/><g fill="#2E3B4E"><rect x="160" y="184" width="22" height="12" rx="2"/><rect x="188" y="184" width="22" height="12" rx="2"/><rect x="216" y="184" width="22" height="12" rx="2"/><rect x="244" y="184" width="22" height="12" rx="2"/><rect x="272" y="184" width="22" height="12" rx="2"/></g>
+<rect x="18" y="166" width="5" height="34" fill="#6E5A44"/><circle cx="20" cy="150" r="20" fill="#5A8A36"/><circle cx="8" cy="162" r="13" fill="#6C9C44"/><circle cx="32" cy="160" r="14" fill="#4E7C2E"/>
+<g fill="#2D3440"><circle cx="112" cy="182" r="3.2"/><rect x="109.3" y="185" width="5.4" height="12" rx="2"/><circle cx="126" cy="181" r="3.2"/><rect x="123.3" y="184" width="5.4" height="13" rx="2"/></g></svg>`
+};
+
 function artSVG(c){
   if(ART_CACHE.has(c.id)) return ART_CACHE.get(c.id);
-  const R=rng(hashStr(c.id+c.n)), [H,Sx,L]=hexHsl(CAT[c.cat].c), h=H+(R()-.5)*44, s=Math.max(38,Sx-10+R()*20);
-  const gid='g'+c.id.replace(/\W/g,''), W=100, Ht=72;
-  const sky1=hsl(h+(R()-.5)*30,s,74+R()*12), sky2=hsl(h,s,46+R()*10), dark=hsl(h,s*.8,22+R()*8), mid=hsl(h+12,s,34+R()*8);
-  let g='';
-  const scene=Math.floor(R()*6);
-  const sun=`<circle cx="${15+R()*70}" cy="${12+R()*16}" r="${7+R()*7}" fill="${hsl(h+40+R()*40,80,88)}" opacity=".9"/>`;
-  if(scene===0){ g+=sun; let x=-4; while(x<W){const bw=6+R()*12,bh=14+R()*34; g+=`<rect x="${x.toFixed(1)}" y="${(Ht-bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${R()<.5?dark:mid}"/>`;
-      for(let wy=Ht-bh+4;wy<Ht-4;wy+=5) for(let wx=x+2;wx<x+bw-2;wx+=3.4) if(R()<.45) g+=`<rect x="${wx.toFixed(1)}" y="${wy.toFixed(1)}" width="1.4" height="2" fill="${hsl(h+50,90,85)}" opacity=".8"/>`;
-      if(R()<.25) g+=`<path d="M${x.toFixed(1)} ${(Ht-bh).toFixed(1)}l${(bw/2).toFixed(1)} -${(4+R()*6).toFixed(1)}l${(bw/2).toFixed(1)} ${(4+R()*6).toFixed(1)}z" fill="${dark}"/>`;
-      x+=bw+R()*2; } }
-  else if(scene===1){ g+=sun; for(let i=0;i<3;i++){const y=34+i*12+R()*6,a=(R()*14).toFixed(1),b=(R()*14).toFixed(1);
-      g+=`<path d="M0 ${y.toFixed(1)} C ${25+R()*10} ${(y-a).toFixed(1)}, ${60+R()*10} ${(y+ +b).toFixed(1)}, 100 ${(y-6+R()*12).toFixed(1)} L100 72 L0 72Z" fill="${i===2?dark:i?mid:hsl(h,s,58)}" opacity="${i===0?.8:1}"/>`;} }
-  else if(scene===2){ const cx=R()*100,cy=Ht*(.2+R()*.6),n=10+Math.floor(R()*8);
-      for(let i=0;i<n;i++){const a1=i/n*Math.PI*2,a2=a1+Math.PI/n; g+=`<path d="M${cx.toFixed(1)} ${cy.toFixed(1)}L${(cx+Math.cos(a1)*160).toFixed(1)} ${(cy+Math.sin(a1)*160).toFixed(1)}L${(cx+Math.cos(a2)*160).toFixed(1)} ${(cy+Math.sin(a2)*160).toFixed(1)}Z" fill="#fff" opacity=".14"/>`;} }
-  else if(scene===3){ for(let i=0;i<9;i++){const x=R()*100,y=R()*72,r=4+R()*18; g+= R()<.5?`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${R()<.5?'#fff':dark}" opacity="${(.08+R()*.18).toFixed(2)}"/>`
-      :`<path d="M${x.toFixed(1)} ${(y-r).toFixed(1)}L${(x+r).toFixed(1)} ${(y+r).toFixed(1)}L${(x-r).toFixed(1)} ${(y+r).toFixed(1)}Z" fill="${R()<.5?'#fff':dark}" opacity="${(.08+R()*.18).toFixed(2)}"/>`;} }
-  else if(scene===4){ for(let i=0;i<5;i++){const y=26+i*10+R()*4,amp=2+R()*5,ph=R()*20; let d=`M0 ${y.toFixed(1)}`; for(let x=0;x<=100;x+=10) d+=` Q ${x+5} ${(y+(x/10%2?amp:-amp)).toFixed(1)}, ${x+10} ${y.toFixed(1)}`;
-      g+=`<path d="${d} L100 72 L0 72Z" fill="${i>2?dark:mid}" opacity="${(.25+i*.15).toFixed(2)}" transform="translate(${-ph.toFixed(1)} 0)"/>`;} }
-  else { const pts=[];for(let i=0;i<14;i++)pts.push([R()*100,R()*72]);
-      pts.forEach((p,i)=>{const q=pts[(i+1+Math.floor(R()*3))%pts.length]; if(R()<.7) g+=`<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${q[0].toFixed(1)}" y2="${q[1].toFixed(1)}" stroke="#fff" stroke-width=".4" opacity=".45"/>`;});
-      pts.forEach(p=>{g+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(.6+R()*1.4).toFixed(1)}" fill="#fff" opacity=".85"/>`;}); }
-  /* Blason */
-  const shape=Math.floor(R()*5), cx=50, cy=38, ring=hsl(h,s,30), fillc='#FFFDF8', acc=hsl(h+180*(R()<.3?1:0)+ (R()-.5)*30,70,52);
-  let crest='';
-  if(shape===0) crest=`<path d="M${cx-17} ${cy-19} H${cx+17} V${cy+2} C${cx+17} ${cy+14} ${cx+8} ${cy+20} ${cx} ${cy+24} C${cx-8} ${cy+20} ${cx-17} ${cy+14} ${cx-17} ${cy+2}Z"/>`;
-  else if(shape===1) crest=`<circle cx="${cx}" cy="${cy+2}" r="21"/>`;
-  else if(shape===2) crest=`<path d="M${cx} ${cy-21} L${cx+19} ${cy-10} V${cy+12} L${cx} ${cy+23} L${cx-19} ${cy+12} V${cy-10}Z"/>`;
-  else if(shape===3) crest=`<rect x="${cx-19}" y="${cy-19}" width="38" height="42" rx="9"/>`;
-  else crest=`<path d="M${cx} ${cy-22} L${cx+21} ${cy+2} L${cx} ${cy+24} L${cx-21} ${cy+2}Z"/>`;
-  const m=mono(c), fs=m.length>5?6.4:m.length>4?7.8:m.length>3?9.5:m.length>2?11:13, ic=iconFor(c,R);
-  const laurel=R()<.5?`<g fill="none" stroke="${hsl(h+40,60,82)}" stroke-width="1.6" stroke-linecap="round" opacity=".9"><path d="M${cx-26} ${cy+18} q-8 -18 2 -36"/><path d="M${cx+26} ${cy+18} q8 -18 -2 -36"/></g>`:'';
-  const svg=`<svg viewBox="0 0 ${W} ${Ht}" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="${R()<.5?1:0}" y2="1"><stop offset="0" stop-color="${sky1}"/><stop offset="1" stop-color="${sky2}"/></linearGradient></defs>
-    <rect width="${W}" height="${Ht}" fill="url(#${gid})"/>${g}${laurel}
-    <g filter="drop-shadow(0 1.5px 1.5px rgba(0,0,0,.35))"><g fill="${fillc}" stroke="${ring}" stroke-width="1.6">${crest}</g></g>
-    <g fill="none" stroke="${acc}" stroke-width=".8" opacity=".9" transform="translate(${cx} ${cy+2}) scale(.82) translate(${-cx} ${-(cy+2)})">${crest}</g>
-    <text x="${cx}" y="${cy-5}" text-anchor="middle" font-size="9.5" dominant-baseline="middle">${ic}</text>
-    <text x="${cx}" y="${cy+9}" text-anchor="middle" dominant-baseline="middle" font-family="Plus Jakarta Sans,system-ui,sans-serif" font-weight="800" font-size="${fs}" fill="${ring}" letter-spacing=".3">${esc(m)}</text></svg>`;
+  let svg=CUSTOM_ART[c.n+'|'+c.city];
+  if(!svg){try{svg=sceneSVG(c);}catch(e){logErr&&logErr('illustration '+c.id+' : '+e.message);svg='<svg viewBox="0 0 200 160"><rect width="200" height="160" fill="#C9D4DE"/></svg>';}}
   ART_CACHE.set(c.id,svg); return svg;
 }
 function cardHTML(c,sn){
