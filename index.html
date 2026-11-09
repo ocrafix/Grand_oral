@@ -1493,6 +1493,7 @@ function checkGifts(){
   if(S.pendingPack&&resumePending()) return;
   if(S.needStarter&&!S.starterPick) return void setTimeout(()=>{if(!pack)startStarter();},500);
   if(noticeOpen()) return;
+  if(me()&&pkey(me().pseudo)==='tablo'&&!S.giftTablo1M){S.giftTablo1M=1;S.dip=(S.dip||0)+1000000;save();renderBar();pulseDip();toast('+🎓 1 000 000');if(view==='boosters')carouselUpdate();}
   if(oneTimeNotices()) return;
   if(showNews()) return;
   if(showDaily()) return;
@@ -1574,7 +1575,7 @@ async function onlineStart(){
 }
 /* Fusion de deux sauvegardes du même compte (cet appareil et le serveur).
    La plus récente sert de base ; les récompenses déjà touchées d’un côté restent touchées des deux côtés. */
-const ONCE=['dip1000','coinsInit','giftGrandmont','giftOcrafix','msgOcra1','starterPick','serialBF'];
+const ONCE=['dip1000','coinsInit','giftGrandmont','giftOcrafix','msgOcra1','starterPick','serialBF','giftTablo1M'];
 function mergeSave(a,b){
   if(!b||!b.coll) return a;
   const aEmpty=!a||!a.coll||(!a.ts&&!Object.keys(a.coll).length&&!(a.opened));
