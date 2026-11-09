@@ -932,6 +932,24 @@ html,body{overflow-x:hidden}
   .achic{background:#F3EFE4}
   .rrow.mine,.achrow.complete,.tier.ok{background:var(--surface)}
 }
+
+/* Version 8 */
+.tc-sn{position:absolute;right:2cqw;top:2cqw;z-index:2;font-style:normal;font-weight:800;font-size:5.6cqw;line-height:1;padding:1.2cqw 2.4cqw;border-radius:99px;
+  background:rgba(11,18,51,.88);color:#F3D27A;box-shadow:0 0 0 .5cqw #F3D27A;font-variant-numeric:tabular-nums}
+.tc-sn.top{background:linear-gradient(135deg,#FFF3C2,#F3D27A 50%,#E1B54E);color:#14204A;box-shadow:0 0 0 .5cqw #fff}
+.tc-sn.wait{opacity:.6}
+.wishrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:340px}
+.albumtabs{margin:0 0 14px;display:flex;width:100%;max-width:460px}
+.albumtabs .segb{flex:1}
+.ownmark{position:absolute;z-index:3;top:-7px;left:-6px;width:24px;height:24px;border-radius:50%;background:var(--good);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.bb-buy>span{display:flex;flex-direction:column;align-items:flex-start;text-align:left}
+.bb-timer span{display:inline}
+.bb-timer{font-size:11px;font-weight:600;opacity:.75}
+@supports not (container-type:inline-size){.tc-sn{font-size:9px;padding:2px 5px;right:3px;top:3px}}
+
+/* Version 9 : pochettes gratuites */
+.bb-buy.free{background:linear-gradient(135deg,#7FE3A8,#2E9E62 55%,#9BEFC0);border-color:#1C7A4C;color:#0B2A1A}
+.bb-buy.free b{font-size:17px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -1150,11 +1168,12 @@ function artSVG(c){
     <text x="${cx}" y="${cy+9}" text-anchor="middle" dominant-baseline="middle" font-family="Plus Jakarta Sans,system-ui,sans-serif" font-weight="800" font-size="${fs}" fill="${ring}" letter-spacing=".3">${esc(m)}</text></svg>`;
   ART_CACHE.set(c.id,svg); return svg;
 }
-function cardHTML(c){
+function cardHTML(c,sn){
   const k=CAT[c.cat], len=c.n.length, r=shown(c);
+  const own=S&&S.coll&&S.coll[c.id], snv=sn===false?0:(sn!=null?sn:(own&&S.serial&&S.serial[c.id])||0), pend=sn==null&&!snv&&own&&NET.linked;
   return `<div class="tc r-${r}" style="--fc:${k.c};--rc:${RC[r]}"><div class="tc-in">
     <div class="tc-head"><span class="tc-chip">${k.s}</span><span class="tc-no">n° ${c.no}</span></div>
-    <div class="tc-art">${artSVG(c)}</div>
+    <div class="tc-art">${artSVG(c)}${snv?`<em class="tc-sn${snv<=10?' top':''}" title="Numéro d’exemplaire">#${fmt(snv)}</em>`:pend?`<em class="tc-sn wait" data-snc="${c.id}">#…</em>`:''}</div>
     <div class="tc-body"><div class="tc-name${len>72?' xl':len>42?' l':''}">${esc(c.n)}</div><div class="tc-loc">${esc(c.city)}, ${esc(c.reg)}</div></div>
     <div class="tc-foot"><span>${GEM[r]} ${RAR[r]}</span><em class="tc-val" title="Valeur de la carte">🪙 ${shownValue(c)}</em></div>
   </div></div>`;
@@ -1191,9 +1210,10 @@ const poolFor=t=>t==='god'?CARDS.filter(c=>c.r==='e'||c.r==='l'||(c.r==='d'&&dia
 const ZIG=(()=>{const n=18,p=['0% 100%'];for(let i=0;i<=n*2;i++){p.push(`${(i/(n*2)*100).toFixed(2)}% ${i%2?0:34}%`);}p.push('100% 100%');return `polygon(${p.join(',')})`;})();
 
 /* ===== Album ===== */
+let albumMode='mine';
 function filtered(){
   const q=norm(query.trim());
-  const list=CARDS.filter(c=>(filter==='all'||c.cat===filter)&&(rarity==='all'||c.r===rarity)&&(region==='all'||c.reg===region)&&S.coll[c.id]&&(!onlyFav||S.fav[c.id])&&(!onlyDup||S.coll[c.id]>1)&&(!q||norm(c.n).includes(q)||norm(c.city).includes(q)||norm(c.sig).includes(q)));
+  const list=CARDS.filter(c=>(filter==='all'||c.cat===filter)&&(rarity==='all'||c.r===rarity)&&(region==='all'||c.reg===region)&&(albumMode==='all'||S.coll[c.id])&&(!onlyFav||S.fav[c.id])&&(!onlyDup||S.coll[c.id]>1)&&(!q||norm(c.n).includes(q)||norm(c.city).includes(q)||norm(c.sig).includes(q)));
   return sort==='no'?list:list.sort(SORTS[sort][1]);
 }
 const fr=(a,b)=>a.localeCompare(b,'fr');
@@ -1209,12 +1229,16 @@ const SORTS={
   qty:['Par nombre d’exemplaires',(a,b)=>(S.coll[b.id]||0)-(S.coll[a.id]||0)||a.no-b.no]
 };
 function gridHTML(){
+  if(albumMode==='all'){const list=filtered(),got=list.reduce((a,c)=>a+(S.coll[c.id]?1:0),0);
+    if(!list.length) return `<p class="empty">Aucune école ne correspond.</p>`;
+    return `<p class="count">${fmt(list.length)} école${list.length>1?'s':''}, dont ${fmt(got)} obtenue${got>1?'s':''}</p><div class="grid">${list.slice(0,limit).map(c=>{const n=S.coll[c.id]||0;return `<button class="cell${n?'':' dim'}" data-card="${c.id}" aria-label="${esc(c.n)}, ${n?'obtenue':'pas encore obtenue'}">${cardHTML(c)}${n>1?`<span class="qty">×${n}</span>`:''}${!n&&S.wish[c.id]?'<span class="wishmark" aria-hidden="true">♥</span>':''}${n?'<span class="ownmark" aria-hidden="true">✓</span>':''}</button>`;}).join('')}</div>
+    ${list.length>limit?`<div class="more"><button class="btn sec" data-act="more">Afficher ${Math.min(96,list.length-limit)} écoles de plus</button></div>`:''}`;}
   if(!owned()) return `<div class="empty"><p>Ton album est vide pour l’instant.</p><button class="btn" data-view="boosters">Ouvrir ma première pochette</button></div>`;
   const list=filtered();
   if(!list.length) return `<p class="empty">Aucune de tes écoles ne correspond. Essaie un autre nom, une autre ville, une autre région ou une autre rareté.</p>`;
   return `<p class="count">${fmt(list.length)} école${list.length>1?'s':''} affichée${list.length>1?'s':''}</p>
     <div class="grid">${list.slice(0,limit).map(c=>{const n=S.coll[c.id]||0;
-      return `<button class="cell" data-card="${c.id}" aria-label="${esc(c.n)}, ${n} exemplaire${n>1?'s':''}${S.fav[c.id]?', en favori':''}">${cardHTML(c)}${n>1?`<span class="qty">×${n}</span>`:''}${S.fav[c.id]?'<span class="favmark" aria-hidden="true">★</span>':''}${S.serial&&S.serial[c.id]?`<span class="snbadge${S.serial[c.id]<=10?' top':''}">n° ${fmt(S.serial[c.id])}</span>`:''}</button>`;}).join('')}</div>
+      return `<button class="cell" data-card="${c.id}" aria-label="${esc(c.n)}, ${n} exemplaire${n>1?'s':''}${S.fav[c.id]?', en favori':''}">${cardHTML(c)}${n>1?`<span class="qty">×${n}</span>`:''}${S.fav[c.id]?'<span class="favmark" aria-hidden="true">★</span>':''}</button>`;}).join('')}</div>
     ${list.length>limit?`<div class="more"><button class="btn sec" data-act="more">Afficher ${Math.min(96,list.length-limit)} écoles de plus</button></div>`:''}`;
 }
 function albumView(){
@@ -1222,15 +1246,17 @@ function albumView(){
   const byR=r=>{const all=CARDS.filter(c=>c.r===r);return [all.reduce((a,c)=>a+(S.coll[c.id]?1:0),0),all.length];};
   const box=(label,[g,a],col)=>`<div class="statbox"><b>${fmt(g)}<span> / ${fmt(a)}</span></b><span>${label}</span><div class="bar"><i style="width:${(g/a*100).toFixed(1)}%;${col?`background:${col}`:''}"></i></div></div>`;
   const chip=(k,l,c)=>`<button class="chip" data-filter="${k}" aria-pressed="${filter===k}" ${c?`style="--fc:${c}"`:''}>${c?'<i></i>':''}${l}</button>`;
-  return `<h1 class="pt">Mon album</h1>
+  const statsBlock=`<div class="valbox"><span>Valeur de ta collection</span><b>🪙 ${fmt(collectionValue())}</b><small>doublons compris</small></div>
+    <div class="stats">${box('Écoles obtenues',[o,t])}${visibleRK().map(k=>box(`<i style="color:${RC[k]}">${GEM[k]}</i> ${RARP[k]}`,byR(k),RC[k])).join('')}</div>`;
+  const tabs=`<div class="seg albumtabs" role="group" aria-label="Affichage"><button class="segb" data-act="amode" data-v="mine" aria-pressed="${albumMode==='mine'}">Mon album (${fmt(o)})</button><button class="segb" data-act="amode" data-v="all" aria-pressed="${albumMode==='all'}">Catalogue (${fmt(t)})</button></div>`;
+  return `<h1 class="pt">${albumMode==='all'?'Catalogue':'Mon album'}</h1>${tabs}
     
-    <div class="valbox"><span>Valeur de ta collection</span><b>🪙 ${fmt(collectionValue())}</b><small>doublons compris</small></div>
-    <div class="stats">${box('Écoles obtenues',[o,t])}${visibleRK().map(k=>box(`<i style="color:${RC[k]}">${GEM[k]}</i> ${RARP[k]}`,byR(k),RC[k])).join('')}</div>
+    ${albumMode==='all'?'':statsBlock}
     <div class="filters">
       <div class="row"><label class="field">${ICON.search}<span class="sr">Recherche</span><input id="search" type="search" placeholder="École, sigle ou ville" value="${esc(query)}" autocomplete="off"></label></div>
       <div class="sels">${regionSelect('areg',region)}<label class="field sel"><span class="sr">Rareté</span><select id="rar"><option value="all">Toutes raretés</option>${visibleRK().slice().reverse().map(k=>`<option value="${k}" ${rarity===k?'selected':''}>${GEM[k]} ${RAR[k]}</option>`).join('')}</select></label>
       <label class="field sel wide">${ICON.sort}<span class="sr">Trier l’album</span><select id="sort">${Object.entries(SORTS).map(([k,[l]])=>`<option value="${k}" ${sort===k?'selected':''}>${l}</option>`).join('')}</select></label></div>
-      <div class="row toggles"><label class="toggle"><input type="checkbox" id="fav" ${onlyFav?'checked':''}>★ Favoris <span class="muted">(${Object.keys(S.fav).length})</span></label><label class="toggle"><input type="checkbox" id="dup" ${onlyDup?'checked':''}>Doublons</label></div>
+      ${albumMode==='all'?'':`<div class="row toggles"><label class="toggle"><input type="checkbox" id="fav" ${onlyFav?'checked':''}>★ Favoris <span class="muted">(${Object.keys(S.fav).length})</span></label><label class="toggle"><input type="checkbox" id="dup" ${onlyDup?'checked':''}>Doublons</label></div>`}
       <div class="chips" role="group" aria-label="Catégories">${chip('all','Toutes')}${CK.map(k=>chip(k,CAT[k].s,CAT[k].c)).join('')}</div>
     </div>
     <div id="grid">${gridHTML()}</div>
@@ -1363,7 +1389,7 @@ function renderOv(){
     ov.innerHTML=`${close}<div class="stage"><div class="summary${pack.cards.length>5?' big':''}"><h2>${pack.god?'✨ God pack ✨<br>':''}${n?`${n} nouvelle${n>1?'s':''} école${n>1?'s':''} !`:'Que des doublons cette fois'}<small class="packval">Valeur de la pochette : 🪙 ${fmt(pack.cards.reduce((t,c)=>t+cardValue(c),0))}</small></h2>
       ${pack.cards.map((c,i)=>`<div class="cell">${cardHTML(c)}${pack.wished[i]?'<span class="badge wish">♥ Souhait</span>':pack.isNew[i]?'<span class="badge">Nouvelle</span>':''}${favBtn(c.id,'favtoggle',true)}</div>`).join('')}</div>
       <p class="hint">Touche l’étoile d’une carte pour la mettre en favori.</p>
-      <div class="ovactions"><button class="btn" data-act="again" ${canPay('dip',packPrice(pack.type,pack.qty||1))?'':'disabled'}>${againLabel()}</button><button class="btn sec" data-act="closeov">Terminer</button></div></div>`;
+      <div class="ovactions"><button class="btn" data-act="again" ${canPay('dip',costOf(pack.type,pack.qty||1).price)?'':'disabled'}>${againLabel()}</button><button class="btn sec" data-act="closeov">Terminer</button></div></div>`;
   }
 }
 /* Scintillements aux couleurs de la rareté pour les épiques et légendaires */
@@ -1549,10 +1575,10 @@ async function doSync(){
   if(syncing){syncAgain=true;return;} syncing=true;
   try{
     await NET.db.doc('data/users/'+NET.uid+'/save').set(JSON.parse(JSON.stringify(S)));
-    const a=me(), p={pseudo:a.pseudo,key:pkey(a.pseudo),packs:S.opened||0,cards:owned(),value:collectionValue(),av:a.av||'',vitrine:vitrine(),dups:dupIds(),updated:Date.now()};
+    const a=me(), p={pseudo:a.pseudo,key:pkey(a.pseudo),packs:S.opened||0,cards:owned(),value:collectionValue(),av:a.av||'',vitrine:vitrine(),vitrineSn:vitrineSn(),wishTop:wishTop(),wishN:Object.keys(S.wish).length,dups:dupIds(),updated:Date.now()};
     const cur=NET.players[NET.uid];
     syncCollection();
-    if(!cur||cur.packs!==p.packs||cur.cards!==p.cards||cur.pseudo!==p.pseudo||cur.value!==p.value||(cur.av||'')!==p.av||JSON.stringify(cur.vitrine||[])!==JSON.stringify(p.vitrine)||JSON.stringify(cur.dups||[])!==JSON.stringify(p.dups)) await NET.db.doc('players/'+NET.uid).set(p);
+    if(!cur||cur.packs!==p.packs||cur.cards!==p.cards||cur.pseudo!==p.pseudo||cur.value!==p.value||(cur.av||'')!==p.av||JSON.stringify(cur.vitrine||[])!==JSON.stringify(p.vitrine)||JSON.stringify(cur.dups||[])!==JSON.stringify(p.dups)||JSON.stringify(cur.vitrineSn||[])!==JSON.stringify(p.vitrineSn)||JSON.stringify(cur.wishTop||[])!==JSON.stringify(p.wishTop)||(cur.wishN||0)!==p.wishN) await NET.db.doc('players/'+NET.uid).set(p);
   }catch(e){ if(e&&e.code==='quota_exceeded') toast('Sauvegarde en ligne impossible pour le moment : la base est pleine.'); }
   syncing=false; if(syncAgain){syncAgain=false;doSync();} else processSerials();
 }
@@ -1610,7 +1636,7 @@ function netRefresh(){
 }
 function playersView(){
   const o=Object.assign({},NET.players);
-  if(NET.linked) o[NET.uid]={pseudo:me().pseudo,packs:S.opened||0,cards:owned(),value:collectionValue(),av:me().av||'',vitrine:vitrine(),dups:dupIds()};
+  if(NET.linked) o[NET.uid]={pseudo:me().pseudo,packs:S.opened||0,cards:owned(),value:collectionValue(),av:me().av||'',vitrine:vitrine(),vitrineSn:vitrineSn(),wishTop:wishTop(),wishN:Object.keys(S.wish).length,dups:dupIds()};
   return o;
 }
 const pname=id=>{const p=playersView()[id];return p?p.pseudo:'Joueur inconnu';};
@@ -1878,17 +1904,27 @@ const PACK_LIST=['mix',...CK];
 let packIdx=0, packQty=1;
 const packName=t=>t==='mix'?'Édition France':t==='god'?'God pack':CAT[t].n;
 const dipShown=()=>DIP_INFINITE?'∞':fmt(S.dip||0);
+const FREE_EVERY=10*60*1000, FREE_MAX=10;
+const freeN=()=>Math.max(0,Math.min(FREE_MAX,S.fp||0));
 function dipTick(){
   if(!ACC.current) return;
-  const now=Date.now(); if(!S.dipT){S.dipT=now;save();return;}
-  const n=Math.floor((now-S.dipT)/DIP_EVERY);
-  if(n>0){const add=Math.min(n,DIP_CAP);S.dip=(S.dip||0)+add;S.dipT+=n*DIP_EVERY;save();
-    if(add>1) toast(`+${add} 🎓 gagnés pendant ton absence`); else pulseDip(); renderBar();}
+  const now=Date.now();
+  if(S.fp==null||!S.fpT){S.fp=S.fp||0;S.fpT=now;save();return;}
+  if(S.fp>=FREE_MAX){if(now-S.fpT>1000){S.fpT=now;}return;}
+  const n=Math.floor((now-S.fpT)/FREE_EVERY);
+  if(n>0){const add=Math.min(n,FREE_MAX-S.fp);S.fp+=add;S.fpT=S.fp>=FREE_MAX?now:S.fpT+n*FREE_EVERY;save();
+    if(add>1) toast(`+${add} pochettes gratuites pendant ton absence 🎁`); else {toast('🎁 Une pochette gratuite est disponible !');sfx('notif');}
+    renderBar(); const bb=$('buybar'); if(bb) bb.innerHTML=buyBar(); const st=document.querySelector('.strip'); if(st) st.outerHTML=homeStrip();}
 }
-function dipLeft(){return S.dipT?DIP_EVERY-((Date.now()-S.dipT)%DIP_EVERY):DIP_EVERY;}
-function updateDipTimer(){const ms=dipLeft(),m=Math.floor(ms/60000),s=Math.floor(ms%60000/1000),t=`${m}:${String(s).padStart(2,'0')}`;document.querySelectorAll('.diptimer').forEach(el=>{el.textContent=t;});}
+function dipLeft(){return freeN()>=FREE_MAX?0:FREE_EVERY-((Date.now()-(S.fpT||Date.now()))%FREE_EVERY);}
+function updateDipTimer(){const full=freeN()>=FREE_MAX,ms=dipLeft(),m=Math.floor(ms/60000),sc=Math.floor(ms%60000/1000),t=full?'stock plein':`${m}:${String(sc).padStart(2,'0')}`;
+  document.querySelectorAll('.diptimer').forEach(el=>{el.textContent=t;});document.querySelectorAll('.freecount').forEach(el=>{el.textContent=freeN();});}
 function pulseDip(){const el=document.querySelector('.dipchip');if(el){el.classList.remove('pulse');void el.offsetWidth;el.classList.add('pulse');}}
-setInterval(()=>{dipTick();updateDipTimer();},1000);
+let lastTick=0;
+function tickAll(){lastTick=Date.now();try{dipTick();updateDipTimer();}catch(e){}}
+/* Boucle relancée à chaque seconde + relance au retour dans l’application (iOS met les minuteurs en pause) */
+(function loop(){tickAll();setTimeout(loop,1000-(Date.now()%1000)+20);})();
+['visibilitychange','pageshow','focus','touchstart','pointerdown'].forEach(ev=>window.addEventListener(ev,()=>{if(document.visibilityState!=='hidden'&&Date.now()-lastTick>900)tickAll();},{passive:true}));
 function canPay(cur,amount){return cur==='dip'?(DIP_INFINITE||(S.dip||0)>=amount):(S.coins||0)>=amount;}
 function pay(cur,amount,label){if(cur==='dip'){if(!DIP_INFINITE)S.dip=(S.dip||0)-amount;}else addTx(-amount,label);}
 
@@ -2017,18 +2053,20 @@ function packPanel(){
   const t=curPack(), pool=poolFor(t), got=countGot(pool), done=got===pool.length;
   return `<h2 class="pktitle">${esc(packName(t))}</h2>
     <p class="pkcount${done?' done':''}">📚 <b>${fmt(got)} / ${fmt(pool.length)}</b> cartes de cette collection${done?' : complète ✓':''}</p>
-    <details class="oddsbox"><summary>Voir les probabilités</summary>${oddsCardHTML(pool)}<p class="muted small">Chance pour chaque carte. 5 cartes par pochette, dont 1 peu commune ou mieux et 1 rare ou mieux. Prix : 🎓 ${packPrice(t,1)} la pochette, −10 % par 5, −15 % par 10.</p></details>`;
-}function homeStrip(){
-  const tot=pendingTotal();
+    <details class="oddsbox"><summary>Voir les probabilités</summary>${oddsCardHTML(pool)}<p class="muted small">Chance pour chaque carte. 5 cartes par pochette, dont 1 peu commune ou mieux et 1 rare ou mieux. Prix : 🎓 ${packPrice(t,1)} la pochette, −10 % par 5, −15 % par 10. Le chrono offre 1 pochette gratuite toutes les 10 minutes (10 en stock au maximum), utilisée en priorité.</p></details>`;
+}function costOf(t,q){const free=Math.min(freeN(),q),rest=q-free;return {free,rest,price:rest?packPrice(t,rest):0};}
+function homeStrip(){
+  const tot=pendingTotal(), full=freeN()>=FREE_MAX;
   return `<div class="strip">
-    <span class="schip">🎓 <b>+1</b> dans <span class="diptimer">…</span></span>
-    ${tot?`<button class="schip hot" data-view="ach">🎁 🎓 ${fmt(tot)} à récupérer</button>`:''}
+    <span class="schip${freeN()?' hot':''}">🎁 <b><span class="freecount">${freeN()}</span>/${FREE_MAX}</b> gratuites${full?', stock plein':`, +1 dans <span class="diptimer">…</span>`}</span>
+    ${tot?`<button class="schip hot" data-view="ach">🏆 🎓 ${fmt(tot)} à récupérer</button>`:''}
 </div>`;
 }
 function buyBar(){
-  const t=curPack(), price=packPrice(t,packQty), ok=canPay('dip',price);
+  const t=curPack(), k=costOf(t,packQty), ok=canPay('dip',k.price);
+  const label=k.rest?(k.free?`🎁 ${k.free} + 🎓 ${k.price}`:`🎓 ${k.price}`):`🎁 ×${k.free}`;
   return `<div class="bb-qty" role="group" aria-label="Nombre de pochettes">${[1,2,5,10].map(q=>`<button class="segb" data-act="qty" data-v="${q}" aria-pressed="${packQty===q}">×${q}</button>`).join('')}</div>
-    <button class="btn bb-buy" data-act="buy" ${ok?'':'disabled'}><span>Ouvrir ${packQty>1?packQty+' pochettes':'la pochette'}</span><b>🎓 ${price}</b></button>`;
+    <button class="btn bb-buy${!k.rest?' free':''}" data-act="buy" ${ok?'':'disabled'}><span>${!k.rest?'Ouvrir gratuitement':'Ouvrir '+(packQty>1?packQty+' pochettes':'la pochette')}<small class="bb-timer">🎁 <span class="freecount">${freeN()}</span>/${FREE_MAX}${freeN()>=FREE_MAX?' : stock plein':', +1 dans <span class="diptimer">…</span>'}</small></span><b>${label}</b></button>`;
 }
 function boostersView(){
   return `${homeStrip()}
@@ -2072,15 +2110,16 @@ function makeOne(pool){
 function startPack(type,qty,cur){
   qty=qty||1; const pool=poolFor(type==='god'?'mix':type);
   if(!pool.length) return toast('Aucune école dans cette pochette.');
-  if(cur){const price=cur==='dip'?packPrice(type,qty):packCoin(type)*qty;
-    if(!canPay(cur,price)) return toast(cur==='dip'?'Pas assez de diplômes.':`Il te manque 🪙 ${fmt(price-(S.coins||0))}. Vends des doublons au Marché !`);
-    pay(cur,price,`${qty} pochette${qty>1?'s':''} ${packName(type)}`);}
+  if(cur){const k=cur==='dip'?costOf(type,qty):{free:0,price:packCoin(type)*qty};
+    if(!canPay(cur,k.price)) return toast(cur==='dip'?`Il te manque 🎓 ${fmt(k.price-(S.dip||0))}. Attends ta prochaine pochette gratuite ou récupère tes succès !`:`Il te manque 🪙 ${fmt(k.price-(S.coins||0))}.`);
+    if(k.free){if(S.fp>=FREE_MAX)S.fpT=Date.now();S.fp-=k.free;}
+    if(k.price) pay(cur,k.price,`${qty} pochette${qty>1?'s':''} ${packName(type)}`);}
   const firstDiamond=!diamondFound(), packs=[]; for(let i=0;i<qty;i++){const p=makeOne(pool);if(type==='god'){p.god=true;}packs.push(p);}
   const cards=[],isNew=[],wished=[],now=Date.now(); let gods=0;
   packs.forEach(p=>{if(p.god)gods++;p.cards.forEach(c=>{isNew.push(!S.coll[c.id]);if(!S.coll[c.id])queueSerial(c.id);wished.push(!!S.wish[c.id]);if(!S.coll[c.id])S.got[c.id]=now+cards.length;delete S.wish[c.id];S.coll[c.id]=(S.coll[c.id]||0)+1;cards.push(c);});});
   S.opened+=qty; if(gods) S.gods=(S.gods||0)+gods; save();
   pack={type,qty,cur,pool,cards,isNew,wished,god:gods>0,gods,firstDiamond,best:bestOf(cards),step:'sealed',i:0,flipped:false};
-  savePending(); sfx('buy'); lock(true); renderOv();
+  savePending(); sfx('buy'); lock(true); renderOv(); if(NET.linked) setTimeout(processSerials,30);
 }
 function multiHTML(){
   const order=pack.cards.map((c,i)=>i).sort((a,b)=>RORD[pack.cards[a].r]-RORD[pack.cards[b].r]); pack.order=order;
@@ -2099,7 +2138,7 @@ function runMulti(){
 function endMulti(){const s=$('mskip'),m=$('msum');if(s)s.hidden=true;if(m)m.hidden=false;
   const b=pack&&pack.best; if(b&&RORD[b]>=3&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const L=document.createElement('div');L.className='fxlayer';L.setAttribute('aria-hidden','true');$('ov').appendChild(L);celebrate(b==='d'?'d':b,L);setTimeout(()=>L.remove(),6000);}}
 function skipMulti(){(pack.timers||[]).forEach(clearTimeout);document.querySelectorAll('#mgrid .mflip').forEach(el=>el.classList.add('on'));endMulti();}
-function againLabel(){return `Rouvrir ×${pack.qty||1} : 🎓 ${packPrice(pack.type,pack.qty||1)}`;}
+function againLabel(){const k=costOf(pack.type,pack.qty||1);return `Rouvrir ×${pack.qty||1} : ${k.rest?(k.free?'🎁 '+k.free+' + ':'')+'🎓 '+k.price:'🎁 gratuit'}`;}
 
 /* --- Cadeau de bienvenue : une légendaire au choix --- */
 function startStarter(){
@@ -2122,8 +2161,15 @@ function toggleVitrine(id){
   else{if(S.vitrine.length>=5)return toast('Ta vitrine est pleine (5 cartes). Retires-en une d’abord.');S.vitrine.push(id);toast('Ajoutée à ta vitrine 🏛️');}
   save(); if(NET.linked) queueSync(true);
 }
-function vitrineHTML(ids,mine){
-  const slots=[0,1,2,3,4].map(k=>{const c=BYID[ids[k]];return c?`<button class="cell vit" data-card="${c.id}">${cardHTML(c)}</button>`:`<span class="vslot">${mine?'+':''}</span>`;}).join('');
+const vitrineSn=()=>vitrine().map(id=>(S.serial&&S.serial[id])||0);
+const wishTop=()=>Object.entries(S.wish||{}).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+function wishesHTML(ids,total,mine){
+  const l=(ids||[]).map(id=>BYID[id]).filter(Boolean);
+  if(!l.length) return `<p class="empty small">${mine?'Aucun souhait pour le moment. Ajoute-en depuis l’onglet Souhaits.':'Aucun souhait pour le moment.'}</p>`;
+  return `<div class="wishrow">${l.map(c=>`<button class="cell vit dim" data-card="${c.id}">${cardHTML(c,false)}<span class="wishmark" aria-hidden="true">♥</span></button>`).join('')}</div>${total>l.length?`<p class="muted small center">et ${fmt(total-l.length)} autre${total-l.length>1?'s':''} souhait${total-l.length>1?'s':''}</p>`:''}`;
+}
+function vitrineHTML(ids,mine,sns){
+  const slots=[0,1,2,3,4].map(k=>{const c=BYID[ids[k]];return c?`<button class="cell vit" data-card="${c.id}">${cardHTML(c,mine?undefined:((sns&&sns[k])||false))}</button>`:`<span class="vslot">${mine?'+':''}</span>`;}).join('');
   return `<div class="vitrine">${slots}</div>`;
 }
 /* --- Profil d’un joueur --- */
@@ -2134,14 +2180,15 @@ function openProfile(uid){
   $('sheet').innerHTML=`<div class="sheet-in"><div class="grab"></div>
     <div class="acct-head">${avatarHTML(p.pseudo,p.av,'big')}<div><h2>${esc(p.pseudo)}${isMe?' <em class="metag">toi</em>':fr?' <em class="metag fr">ami</em>':''}</h2></div></div>
     <div class="acct-stats"><div><b>${fmt(p.cards||0)}</b><span>écoles</span></div><div><b>${fmt(p.packs||0)}</b><span>pochettes</span></div><div><b>🪙 ${fmt(p.value||0)}</b><span>valeur</span></div><div><b>${(p.vitrine||[]).length}</b><span>en vitrine</span></div></div>
-    <h3 class="subt">Vitrine</h3>${(p.vitrine||[]).length?vitrineHTML(p.vitrine,false):'<p class="empty small">Sa vitrine est vide pour le moment.</p>'}
+    <h3 class="subt">Vitrine</h3>${(p.vitrine||[]).length?vitrineHTML(p.vitrine,false,p.vitrineSn):'<p class="empty small">Sa vitrine est vide pour le moment.</p>'}
+    <h3 class="subt">♥ Ses souhaits${p.wishN?' ('+fmt(p.wishN)+')':''}</h3>${wishesHTML(p.wishTop,p.wishN||0,false)}
     <div class="sheet-actions">${!isMe&&fr&&NET.linked?`<button class="btn" data-act="tradeopen" data-id="${esc(uid)}">🔄 Proposer un échange</button>`:''}<button class="btn sec" data-act="closesheet">Fermer</button></div></div>`;
 }
 
 /* --- Échanges entre amis : une carte contre une carte --- */
 let TR=null;
 function tradeOpen(uid){TR={to:uid,give:null,want:null,q:'',q2:'',theirs:undefined};tradeRender();loadTheirs(uid);}
-function miniGrid(list,act,selId){return `<div class="minigrid">${list.map(c=>`<button class="mini${c.id===selId?' sel':''}" data-act="${act}" data-id="${c.id}" aria-pressed="${c.id===selId}">${cardHTML(c)}${act==='trgive'&&S.coll[c.id]>1?`<span class="qty">×${S.coll[c.id]}</span>`:''}</button>`).join('')}</div>`;}
+function miniGrid(list,act,selId){return `<div class="minigrid">${list.map(c=>`<button class="mini${c.id===selId?' sel':''}" data-act="${act}" data-id="${c.id}" aria-pressed="${c.id===selId}">${cardHTML(c,act==='trwant'?false:undefined)}${act==='trgive'&&S.coll[c.id]>1?`<span class="qty">×${S.coll[c.id]}</span>`:''}</button>`).join('')}</div>`;}
 function tradeRender(){
   const p=playersView()[TR.to]||{}, q=norm(TR.q||'');
   const mine=CARDS.filter(c=>S.coll[c.id]&&(!q||norm(c.n+' '+c.city).includes(q))).sort((a,b)=>(S.coll[b.id]>1)-(S.coll[a.id]>1)||cardValue(b)-cardValue(a)).slice(0,60);
@@ -2404,7 +2451,7 @@ function claimDaily(){
 /* Cadeaux uniques : 1 000 diplômes, message pour ocrafix */
 function oneTimeNotices(){
   if(!S.dip1000){S.dip1000=1;S.dip=(S.dip||0)+1000;save();renderBar();
-    showNotice({emoji:'🎁',title:'1 000 diplômes offerts !',sound:'coin',html:'<p>Pour bien démarrer, voici 🎓 1 000, de quoi ouvrir une centaine de pochettes. Tu gagnes ensuite des diplômes toutes les 10 minutes, chaque jour en te connectant et avec les succès.</p>',actions:'<button class="btn" data-act="noticeok">Ouvrir des pochettes</button>'});
+    showNotice({emoji:'🎁',title:'1 000 diplômes offerts !',sound:'coin',html:'<p>Pour bien démarrer, voici 🎓 1 000, de quoi ouvrir une centaine de pochettes. En plus, le chrono t’offre une pochette gratuite toutes les 10 minutes, jusqu’à 10 en stock. Tu gagnes aussi des diplômes chaque jour en te connectant et avec les succès.</p>',actions:'<button class="btn" data-act="noticeok">Ouvrir des pochettes</button>'});
     return true;}
   if(me()&&pkey(me().pseudo)==='ocrafix'&&!S.msgOcra1){S.msgOcra1=1;save();
     showNotice({emoji:'💌',title:'Message de Thibault',sound:'notif',html:'<p class="bigquote">« ça va ma couille alors ta une diamant ? »</p>',actions:'<button class="btn" data-act="noticeok">Répondre en jouant 😏</button>'});
@@ -2474,7 +2521,8 @@ async function processSerials(){
   S.serial=S.serial||{};
   for(const id of q.slice(0,30)){
     if(S.serial[id]){delete S.serialQ[id];continue;}
-    const n=await mintOne(id); if(n){S.serial[id]=n;delete S.serialQ[id];}
+    const n=await mintOne(id); if(n){S.serial[id]=n;delete S.serialQ[id];
+      document.querySelectorAll(`[data-snc="${id}"]`).forEach(el=>{el.textContent='#'+fmt(n);el.classList.remove('wait');if(n<=10)el.classList.add('top');el.removeAttribute('data-snc');});}
     await sleep(150);
   }
   minting=false; save();
@@ -2562,7 +2610,8 @@ function openAccount(){
         ${a.av?'<button class="btn sec small" data-act="avnone">Retirer</button>':''}</div>
       <div class="avgrid" role="group" aria-label="Avatars illustrés">${PRESETS.map(([e,c])=>`<button class="avopt${a.av==='e:|'+e+'|'+c?' on':''}" data-act="avpreset" data-v="e:|${e}|${c}" style="--av:${c}" aria-label="Avatar ${e}">${e}</button>`).join('')}</div></div>
     <div class="acct-stats"><div><b>${fmt(owned())}</b><span>écoles</span></div><div><b>${fmt(S.opened)}</b><span>pochettes</span></div><div><b>${Object.keys(S.fav).length}</b><span>favoris</span></div><div><b>${Object.keys(S.wish).length}</b><span>souhaits</span></div></div>
-    <div class="acct-block"><h3>🏛️ Ma vitrine (${vitrine().length}/5)</h3>${vitrineHTML(vitrine(),true)}<p class="muted small">${NET.linked?'Visible par tous les joueurs. ':''}Ajoute une carte depuis sa fiche, avec le bouton « Ajouter à ma vitrine ».</p></div>
+    <div class="acct-block"><h3>🏛️ Ma vitrine (${vitrine().length}/5)</h3>${vitrineHTML(vitrine(),true)}<p class="muted small">${NET.linked?'Visible par tous les joueurs. ':''}Ajoute une carte depuis sa fiche, avec le bouton « Ajouter à ma vitrine ».</p>
+      <h3 style="margin-top:14px">♥ Mes souhaits (${fmt(Object.keys(S.wish).length)})</h3>${wishesHTML(wishTop(),Object.keys(S.wish).length,true)}</div>
     <form id="renameform" class="acct-block" novalidate><h3>Changer de pseudo</h3><div class="row"><label class="field"><span class="sr">Nouveau pseudonyme</span><input id="newpseudo" maxlength="20" value="${esc(a.pseudo)}" autocomplete="nickname"></label><button class="btn sec" type="submit">Enregistrer</button></div><p class="gate-msg" id="newpseudomsg" aria-live="polite"></p></form>
     ${a.online?'<p class="acct-online">🌐 Compte en ligne : pseudo unique, album sauvegardé et visible dans le classement.</p>':''}
     ${a.online?'':`<div class="acct-block"><h3>Comptes sur cet appareil</h3><div class="acctlist">${others.map(x=>`<button class="acctrow" data-act="switch" data-id="${x.id}">${avatarHTML(x.pseudo,x.av)}<span><b>${esc(x.pseudo)}</b><small>Passer sur ce compte</small></span></button>`).join('')}
@@ -2637,6 +2686,7 @@ document.addEventListener('click',e=>{
     case 'opengift': return openGift(b);
     case 'wingo': pack.step='summary'; return renderOv();
     case 'account': return openAccount();
+    case 'amode': albumMode=d.v; limit=96; render(); return;
     case 'conv': return convertCoins(+d.v,b);
     case 'noticeok': return closeNotice();
     case 'dailyclaim': return claimDaily();
@@ -2684,7 +2734,7 @@ document.addEventListener('click',e=>{
     case 'favov': {const on=toggleFav(d.id);const icon=b.classList.contains('favtoggle');
       b.setAttribute('aria-pressed',on);b.setAttribute('aria-label',on?'Retirer le favori':'Mettre en favori');b.textContent=icon?(on?'★':'☆'):(on?'★ En favori':'☆ Mettre en favori');
       toast(on?'Ajoutée aux favoris':'Retirée des favoris');return;}
-    case 'wish': {const id=d.id; if(S.wish[id]) delete S.wish[id]; else S.wish[id]=1; save(); openSheet(id); toast(S.wish[id]?'Ajoutée à tes souhaits':'Retirée de tes souhaits'); renderBar(); if(view==='wish'){const a=$('wres'),l=$('wlist'),h=$('wcount');if(a)a.innerHTML=wishResults();if(l)l.innerHTML=wishList();if(h)h.textContent='('+Object.keys(S.wish).length+')';} return;}
+    case 'wish': {const id=d.id; if(S.wish[id]) delete S.wish[id]; else S.wish[id]=Date.now(); save(); openSheet(id); toast(S.wish[id]?'Ajoutée à tes souhaits':'Retirée de tes souhaits'); renderBar(); if(view==='wish'){const a=$('wres'),l=$('wlist'),h=$('wcount');if(a)a.innerHTML=wishResults();if(l)l.innerHTML=wishList();if(h)h.textContent='('+Object.keys(S.wish).length+')';} return;}
     case 'fav': {const id=d.id; if(S.fav[id]) delete S.fav[id]; else S.fav[id]=1; save(); openSheet(id); toast(S.fav[id]?'Ajoutée aux favoris':'Retirée des favoris'); if(view==='album'){const g=$('grid');if(g)g.innerHTML=gridHTML();} return;}
     case 'more': limit+=96; $('grid').innerHTML=gridHTML(); return;
   }
